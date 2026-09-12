@@ -159,6 +159,28 @@ def test_t6_frozen_scientific_gate_is_recorded_negative_result():
     assert _passes_gate(s) is False
 
 
+def test_guard_protects_all_baseline_non_target_skills_before_any_new_edit():
+    model = make_seed_model(seed=23)
+    proposal = make_dataset(seed=101, examples_per_skill=128)
+    calibration = make_dataset(seed=103, examples_per_skill=128)
+    candidate = generate_candidates(
+        model,
+        proposal,
+        skill=0,
+        candidate_seeds=(32,),
+    )[0]
+
+    decision = consider_candidate(
+        model,
+        retained_edits=[],
+        candidate=candidate,
+        target_data=proposal,
+        calibration=calibration,
+    )
+
+    assert set(decision.risk_by_skill) == {1, 2}
+
+
 def test_causal_guard_controls_persistent_consolidation_on_same_candidate_stream():
     assert callable(consider_candidate)
     demo = continual_demo(seed=0)
@@ -171,6 +193,7 @@ def test_causal_guard_controls_persistent_consolidation_on_same_candidate_stream
     assert len(set(demo.candidate_seeds)) == demo.candidates_considered
     assert len(demo.events) == demo.candidates_considered
     assert all(event.used_consider_candidate for event in demo.events)
+    assert any(event.reason == "dynamic_risk" for event in demo.events)
 
     # This is the practical demo target, not a rewrite of the failed T6 science:
     # the guarded policy should preserve the two skills that are old at the final
