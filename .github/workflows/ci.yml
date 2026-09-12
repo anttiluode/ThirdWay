@@ -24,3 +24,15 @@ jobs:
       - run: python -m experiments.gate_t3_identifiability_credit
       - run: python -m experiments.gate_t4_causal_collision
       - run: python -m experiments.gate_t5_nonlinear_collision_radar
+      - name: Verify T6 remains the recorded scientific negative
+        run: |
+          python - <<'PY'
+          from experiments.gate_t6_persistent_skill_compatibility import _passes_gate, run
+          summary = run()
+          assert not _passes_gate(summary)
+          assert summary.predictors["causal"].damage_correlation > 0.70
+          assert summary.predictors["causal"].test_auroc > 0.84
+          assert summary.predictors["causal_shuffled"].test_auroc >= summary.predictors["causal"].test_auroc
+          print("T6 recorded negative reproduced")
+          PY
+      - run: python demo_t6_continual_learning.py
