@@ -181,7 +181,7 @@ It does **not** show that fine tangent time ordering is necessary for that advan
 
 [`T6_RESULTS.md`](T6_RESULTS.md)
 
-### Practical demo: use the surviving signal as a consolidation guard
+### Practical demo: dynamic susceptibility as a safety filter
 
 The frozen 12-event schedule is
 
@@ -189,7 +189,7 @@ The frozen 12-event schedule is
 A -> B -> C -> B -> A -> C -> A -> B -> C -> B -> A -> C
 ```
 
-Both learners receive the **same candidate matrices**. Accept-all commits every locally useful proposal. The guarded learner commits only if the proposal remains useful in its current state and predicted dynamic risk to retained other skills stays below the threshold learned from the frozen T6 training split.
+Both learners receive the **same candidate matrices**. Accept-all commits every locally useful proposal. The corrected guard protects every non-target skill already present in the baseline RNN from the first event onward; it commits only if the proposal remains useful in its current state and predicted risk to every protected skill stays below the frozen T6 threshold.
 
 Starting accuracy:
 
@@ -199,18 +199,18 @@ A=.859 B=.664 C=.633    mean=.719
 
 After 12 persistent proposals:
 
-| learner | A | B | C | mean | A/B old-at-final mean | switch penalty |
-|---|---:|---:|---:|---:|---:|---:|
-| **guarded** | **0.859** | 0.625 | 0.664 | **0.716** | **0.742** | **0.01256** |
-| accept-all | 0.664 | **0.641** | **0.672** | 0.659 | 0.652 | 0.02105 |
+| learner | A | B | C | mean | minimum | A/B old-at-final mean | switch penalty |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **guarded** | **0.844** | **0.656** | 0.648 | **0.716** | **0.648** | **0.750** | **0.00966** |
+| accept-all | 0.664 | 0.641 | **0.672** | 0.659 | 0.641 | 0.652 | 0.02105 |
 
-The guard accepts `5/12` updates and rejects `7/12`. Six are rejected for predicted dynamic risk; one proposal becomes locally useless after the two learning trajectories have diverged.
+The corrected guard accepts only `1/12` updates and rejects `11/12`: nine for predicted dynamic risk and two because the proposal is no longer locally useful after the learning trajectories diverge.
 
-This is a real protective effect, not a solved continual learner. The guard preserves A and still improves C, but B regresses and the guarded model's aggregate mean does not exceed its starting mean.
+This is a real safety effect, but **not yet a useful continual learner**. It substantially reduces forgetting and switching disruption, yet its final mean `0.716` remains slightly below the starting mean `0.719` because the binary veto refuses almost everything.
 
-That exposes the next problem:
+That exposes the next problem directly:
 
-> **compatibility rejection protects the repertoire, but wastes useful updates.**
+> **protective stagnation: compatibility rejection protects the repertoire by refusing useful learning.**
 
 [`T6_DEMO_RESULTS.md`](T6_DEMO_RESULTS.md)
 
@@ -262,32 +262,32 @@ Call the extra stage **compatibility selection**.
 
 ## Next hard boundary — T7 compatible partial writes
 
-T6's reject-only guard is useful but wasteful. T7 should ask a more constructive question:
+T6's reject-only guard is safe but severely wasteful. T7 should ask a more constructive question:
 
-> A full candidate is locally useful but unsafe. How much of it can become permanent without destroying retained computation?
+> A full candidate is locally useful but unsafe. How much of that same direction can become permanent without crossing a compatibility boundary?
 
-Freeze a descending scale bank such as
+The first T7 experiment should freeze a descending scale bank such as
 
 ```text
 1.00, 0.75, 0.50, 0.25, 0.125
 ```
 
-and choose the largest fraction that remains target-useful while falling below the retained-skill risk threshold.
+and choose the largest fraction that remains target-useful while falling below the protected-skill risk threshold. It must use the same 12-event proposal stream and may not inspect held-out old-skill damage before committing.
 
-If every scaled version remains unsafe, add the IttnasNoruen lesson: measure a small compensation direction that bends the finite update back into the acceptable region.
-
-The same 12-event proposal stream should compare:
+Compare:
 
 ```text
 accept-all
-reject-only guard       <- T6 demo
-safe-step guard         <- T7
+reject-only guard       <- corrected T6 demo
+safe-step guard         <- T7A
 finite oracle upper bound
 ```
 
+Only if scalar safe steps fail should a later T7B import the IttnasNoruen finite-compensation idea.
+
 The target is no longer merely **less forgetting**. It is:
 
-> **keep learning while respecting compatibility constraints.**
+> **keep as much useful learning as possible while respecting compatibility constraints.**
 
 After that, return to active sensing for write resolution, V25 adaptive resonant credit, and finally discovered rather than seeded computational approaches.
 
