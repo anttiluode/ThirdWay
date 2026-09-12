@@ -1,12 +1,12 @@
 # T6 continual-learning demo — guarded persistent consolidation
 
-**Status: practical demo succeeds on its frozen 12-event protocol, but it is not a retroactive pass of the scientific T6 gate.**
+**Status: the corrected guard reduces forgetting, but the binary veto is too conservative to count as a useful continual learner.**
 
-The scientific T6 result remains a frozen FAIL because shuffled tangent order did not reduce predictive power. This demo asks a different engineering question:
+The scientific T6 result remains a frozen FAIL because shuffled tangent order did not reduce predictive power. This separate engineering demo asks:
 
-> Can the surviving direction-specific dynamic-risk signal make better permanent learning decisions than blindly consolidating every locally useful update?
+> Can the surviving direction-specific dynamic-risk signal make safer permanent learning decisions than blindly consolidating every locally useful update?
 
-The answer on the frozen demo stream is **yes for old-skill retention and mean final accuracy**, with an important limitation: the guard is conservative and gives up some progress on the weaker skills.
+After pre-merge review, one bug in the first demo was corrected: the seed RNN already performs all three skills, so every non-target baseline skill must be protected **before its first new edit**. The earlier version protected a skill only after that skill had an accepted edit, making the guard schedule-dependent. The corrected result below is the one retained.
 
 ## Frozen protocol
 
@@ -33,11 +33,12 @@ For each event:
 1. the **accept-all** trajectory generates the next rank-1 candidate using target-skill data only;
 2. the exact same candidate matrix is offered to both learners;
 3. accept-all permanently commits every locally useful proposal;
-4. the guarded learner calls the production `consider_candidate(...)` API;
-5. the guard recomputes target usefulness in its own current state and estimates directional dynamic risk to already-retained *other* skills;
-6. the candidate is permanently committed only if it remains locally useful and every retained-skill risk is below the threshold calibrated on the frozen T6 training split.
+4. the guarded learner calls `consider_candidate(...)`;
+5. the guard recomputes target usefulness in its own current state;
+6. it estimates directional dynamic risk to **every non-target baseline skill represented in the calibration set**, plus any retained-edit provenance;
+7. the candidate becomes permanent only if it remains locally useful and every protected-skill risk is below the threshold calibrated on the frozen T6 training split.
 
-The demo never evaluates actual cross-skill damage before deciding.
+The demo never evaluates actual held-out cross-skill damage before deciding.
 
 Frozen causal-risk threshold:
 
@@ -56,30 +57,30 @@ C = 0.633
 mean = 0.719
 ```
 
-## Event trace
+## Corrected event trace
 
 | event | skill | candidate | target gain in accept-all | target gain in guarded | max predicted risk | guard |
 |---:|---|---:|---:|---:|---:|---|
-| 1 | A | 32 | +0.06587 | +0.06587 | 0.00000 | ACCEPT |
-| 2 | B | 33 | +0.04006 | +0.04006 | 0.15246 | REJECT risk |
-| 3 | C | 34 | +0.05039 | +0.04377 | 0.05820 | REJECT risk |
-| 4 | B | 35 | +0.04072 | +0.04933 | 0.08231 | REJECT risk |
-| 5 | A | 36 | +0.08094 | +0.04259 | 0.00000 | ACCEPT |
-| 6 | C | 37 | +0.03876 | +0.05805 | 0.06976 | REJECT risk |
-| 7 | A | 38 | +0.09747 | +0.03044 | 0.00000 | ACCEPT |
-| 8 | B | 39 | +0.07670 | +0.01011 | 0.06157 | REJECT risk |
-| 9 | C | 40 | +0.04690 | +0.03806 | 0.05101 | ACCEPT |
-| 10 | B | 41 | +0.08722 | +0.08933 | 0.04934 | ACCEPT |
-| 11 | A | 42 | +0.11780 | +0.05461 | 0.16604 | REJECT risk |
-| 12 | C | 43 | +0.02415 | -0.00303 | 0.09525 | REJECT no longer useful |
+| 1 | A | 32 | +0.06587 | +0.06587 | 0.06050 | REJECT risk |
+| 2 | B | 33 | +0.04006 | +0.04912 | 0.14863 | REJECT risk |
+| 3 | C | 34 | +0.05039 | +0.05130 | 0.11301 | REJECT risk |
+| 4 | B | 35 | +0.04072 | +0.04990 | 0.07557 | REJECT risk |
+| 5 | A | 36 | +0.08094 | +0.03504 | 0.07217 | REJECT risk |
+| 6 | C | 37 | +0.03876 | +0.05913 | 0.07580 | REJECT risk |
+| 7 | A | 38 | +0.09747 | +0.03832 | 0.09223 | REJECT risk |
+| 8 | B | 39 | +0.07670 | -0.01957 | 0.09915 | REJECT no longer useful |
+| 9 | C | 40 | +0.04690 | +0.04597 | 0.08139 | REJECT risk |
+| 10 | B | 41 | +0.08722 | +0.05157 | 0.04428 | **ACCEPT** |
+| 11 | A | 42 | +0.11780 | +0.08571 | 0.15006 | REJECT risk |
+| 12 | C | 43 | +0.02415 | -0.01155 | 0.08800 | REJECT no longer useful |
 
 Guarded decisions:
 
 ```text
-accepted  5 / 12
-rejected  7 / 12
-  risk rejection                  6
-  no longer useful after divergence 1
+accepted   1 / 12
+rejected  11 / 12
+  dynamic-risk rejection            9
+  no longer useful after divergence 2
 ```
 
 Accept-all permanently commits all 12 proposals.
@@ -89,103 +90,105 @@ Accept-all permanently commits all 12 proposals.
 ```text
                  A      B      C      mean    minimum
 base           0.859  0.664  0.633   0.719   0.633
-guarded        0.859  0.625  0.664   0.716   0.625
+guarded        0.844  0.656  0.648   0.716   0.648
 accept-all     0.664  0.641  0.672   0.659   0.641
 ```
 
-At the final C event, A and B are the already-existing skills. Their mean retention is:
+At the final C event, A and B are the old skills. Their mean retention is:
 
 ```text
-guarded     0.742
+guarded     0.750
 accept-all  0.652
 ```
 
-The guarded policy therefore keeps about `+0.090` absolute old-skill accuracy relative to blindly consolidating every locally useful edit.
+That is about `+0.098` absolute old-skill accuracy for the guarded network.
 
-The clearest catastrophic-forgetting difference is A:
+The clearest forgetting difference is A:
 
 ```text
 base        0.859
-guarded     0.859
+guarded     0.844
 accept-all  0.664
 ```
 
-C still improves under the guard:
+The guard also ends with a slightly better minimum skill accuracy:
 
 ```text
-base        0.633
-guarded     0.664
+guarded     0.648
+accept-all  0.641
 ```
 
-so this is not simply a frozen network. B, however, falls from `0.664` to `0.625`, and accept-all ends slightly higher on B and C individually.
+but this should not be oversold: the guard accepts only one permanent proposal, and its final mean `0.716` is still slightly below the starting mean `0.719`.
 
 ## Switching transient
 
 Mean carried-state switch penalty across the six ordered skill changes:
 
 ```text
-guarded     +0.01256
+guarded     +0.00966
 accept-all  +0.02105
 ```
 
-Lower is better. The guarded model is less disrupted when recurrent state is carried across a context switch.
+Lower is better. The guarded network is less disrupted by carried recurrent state across context switches.
 
-## What the demo establishes
+## What the corrected demo establishes
 
-The demonstration is executable evidence for a practical mechanism:
+The executable mechanism is:
 
 ```text
 target-only useful proposal
--> estimate direction-specific risk to retained computations
+-> estimate direction-specific susceptibility of every protected non-target skill
 -> accept or reject before permanent consolidation
 -> reduce catastrophic old-skill damage
 ```
 
-It uses the same recurrent substrate, candidate generator and directional dynamic-risk function measured in T6. The two learners receive the same proposal matrices, so the guard is not winning by asking for easier candidates.
+The two learners receive the same proposal matrices, and the threshold is learned only from the frozen T6 training split.
 
-The useful result is:
+The supported engineering statement is:
 
-> **Pre-commit dynamic susceptibility can make persistent learning safer than accepting every locally useful update in this shared recurrent model.**
+> **Pre-commit dynamic susceptibility can act as a useful safety filter for persistent edits in this shared recurrent model.**
 
-## What it does not establish
+That wording is intentionally narrower than “continual learning solved.”
 
-This is still a small synthetic recurrent world with three seeded task definitions. It does not establish state-of-the-art continual learning, biological plausibility, or a universal advantage over EWC/replay/orthogonal-gradient methods.
+## What it exposes
 
-More importantly, it exposes a new engineering failure:
+The corrected guard makes the next failure impossible to ignore:
 
-> **rejection preserves knowledge by wasting potentially useful learning.**
+> **protective stagnation — a binary safety veto preserves the repertoire by refusing almost all learning.**
 
-The guarded model finishes with a better mean and much better A retention than accept-all, but it does not finish better on every skill and it does not improve its aggregate mean beyond the starting network.
+The reject-only guard retains old behavior far better than accept-all, but commits only `1/12` proposals and fails to increase aggregate held-out accuracy beyond the starting network.
 
-That makes the next experiment concrete rather than philosophical.
+This is exactly where the old IttnasNoruen finite-change lesson becomes useful. A direction can be valuable while the full finite step is unsafe. The right action need not be “accept all” or “throw it away.”
 
 ## T7 target — compatible partial writes
 
-When a full candidate is useful but unsafe, do not immediately discard it.
-
-Try a fixed descending scale bank, for example
+For an unsafe but locally useful candidate `Delta W`, test a fixed descending scale bank:
 
 ```text
 1.00, 0.75, 0.50, 0.25, 0.125
 ```
 
-and choose the largest candidate fraction that simultaneously:
+Choose the **largest** fraction `alpha Delta W` that simultaneously:
 
 ```text
-1. remains useful on the target skill;
-2. falls below retained-skill dynamic-risk threshold;
-3. is committed using the exact same permanent-write API.
+1. remains useful on the target skill in the current guarded state;
+2. keeps predicted risk below threshold for every protected non-target skill;
+3. is committed through the same persistent-write API.
 ```
 
-If no scaled version is safe, add the IttnasNoruen lesson: search a small measured compensation direction that restores the endangered retained response while preserving as much target gain as possible.
+No actual held-out old-skill damage may be inspected during the decision.
 
-The decisive comparison should keep the same proposal stream and compare:
+The first T7 comparison should keep exactly the same candidate stream and compare:
 
 ```text
 accept-all
-reject-only guard      (current T6 demo)
-safe-step guard        (T7)
-finite oracle upper bound
+reject-only guard      <- corrected T6 demo
+safe-step guard        <- T7A
+finite oracle          <- upper bound only
 ```
 
-T7 should improve **learning efficiency under compatibility constraints**, not merely rejection accuracy.
+Only if no scalar fraction is safe should a later T7B introduce the IttnasNoruen-style measured compensation direction.
+
+The target has now sharpened from **detect dangerous learning** to:
+
+> **keep as much useful learning as possible while respecting compatibility constraints.**
