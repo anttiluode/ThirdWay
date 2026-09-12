@@ -5,11 +5,14 @@ sequence-level forgetting. T7B keeps the same frozen 12 candidate matrices and
 measures the collateral wake each accepted edit leaves in hidden-trajectory
 response space.
 
-This module starts with two primitives:
+The central comparison is deliberately narrow:
 
-* a signed finite route residual that telescopes exactly in response space; and
-* one untuned common residual budget derived from the already-frozen T6
-  reject-only learner on the same proposal stream.
+* scalar cumulative debt remembers only how much collateral motion happened;
+* signed residual memory remembers the direction of that route motion, so a
+  later write can cancel part of an earlier wake.
+
+Both use the same untuned budget derived from the already-frozen T6 reject-only
+learner. No candidate direction is rotated or regenerated.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from experiments.gate_t6_persistent_skill_compatibility import (
     batch_hidden_trajectories,
     make_dataset,
     make_seed_model,
+    mean_squared_loss,
 )
 from experiments.t6_continual_learning import (
     DEMO_CALIBRATION_SEED,
@@ -34,6 +38,11 @@ from experiments.t6_continual_learning import (
     _next_useful_proposal,
     calibrated_risk_threshold,
     consider_candidate,
+)
+from experiments.t7_compatible_partial_writes import (
+    MIN_TARGET_IMPROVEMENT,
+    SCALE_BANK,
+    _scaled_candidate,
 )
 
 
@@ -48,6 +57,27 @@ class ResidualBudgetReference:
     peak_by_skill: tuple[float, float, float]
 
 
+@dataclass(frozen=True)
+class ResidualTrial:
+    scale: float
+    target_improvement: float
+    step_rms_by_skill: dict[int, float]
+    resultant_rms_by_skill: dict[int, float]
+
+
+@dataclass(frozen=True)
+class ResidualDecision:
+    accepted: bool
+    reason: str
+    scale: float
+    target_improvement: float
+    scaled_candidate: CandidateEdit
+    step_vectors_by_skill: dict[int, np.ndarray]
+    step_rms_by_skill: dict[int, float]
+    resultant_rms_by_skill: dict[int, float]
+    trials: tuple[ResidualTrial, ...]
+
+
 def route_signature(
     model,
     calibration,
@@ -56,7 +86,7 @@ def route_signature(
 ) -> np.ndarray:
     """Flatten exact recurrent trajectories for one protected skill.
 
-    The initial all-zero state is omitted.  The result therefore contains only
+    The initial all-zero state is omitted. The result therefore contains only
     the material trajectory produced by the recurrent substrate itself.
     """
     subset = calibration.for_skill(int(skill))
@@ -112,7 +142,7 @@ def _initial_route_state(model, calibration) -> tuple[dict[int, np.ndarray], dic
 def reject_only_residual_budget(seed: int = 0) -> ResidualBudgetReference:
     """Derive one common residual envelope from the frozen T6 reject-only path.
 
-    No T7B outcome is consulted.  The replay uses the same 12 accept-all-anchored
+    No T7B outcome is consulted. The replay uses the same 12 accept-all-anchored
     candidates as T7A and the existing T6 risk threshold/decision rule.
     """
     seed = int(seed)
@@ -173,4 +203,168 @@ def reject_only_residual_budget(seed: int = 0) -> ResidualBudgetReference:
         candidate_seeds=tuple(int(edit.seed) for edit in stream),
         accepted=int(accepted),
         peak_by_skill=(float(peaks[0]), float(peaks[1]), float(peaks[2])),
+    )
+
+
+def _zero_candidate(model, candidate: CandidateEdit, target_data) -> CandidateEdit:
+    loss = float(mean_squared_loss(model, target_data, int(candidate.skill)))
+    return CandidateEdit(
+        skill=int(candidate.skill),
+        seed=int(candidate.seed),
+        delta_w=np.zeros_like(candidate.delta_w),
+        base_loss=loss,
+        edited_loss=loss,
+    )
+
+
+def _measure_scale(
+    model,
+    *,
+    candidate: CandidateEdit,
+    target_data,
+    calibration,
+    scale: float,
+) -> tuple[CandidateEdit, dict[int, np.ndarray], dict[int, float]]:
+    """Measure one fixed-amplitude candidate in exact trajectory space."""
+    scaled = _scaled_candidate(model, candidate, target_data, float(scale))
+    protected = tuple(skill for skill in range(3) if skill != int(candidate.skill))
+    before = {
+        skill: route_signature(model, calibration, skill)
+        for skill in protected
+    }
+    trial_model = apply_edit(model, scaled)
+    step_vectors = {
+        skill: route_signature(trial_model, calibration, skill) - before[skill]
+        for skill in protected
+    }
+    step_rms = {
+        skill: residual_rms(step_vectors[skill])
+        for skill in protected
+    }
+    return scaled, step_vectors, step_rms
+
+
+def consider_scalar_debt_candidate(
+    model,
+    *,
+    candidate: CandidateEdit,
+    target_data,
+    calibration,
+    debts: dict[int, float],
+    budget: float,
+) -> ResidualDecision:
+    """Largest useful scale whose unsigned cumulative debt remains in budget."""
+    trials: list[ResidualTrial] = []
+    protected = tuple(skill for skill in range(3) if skill != int(candidate.skill))
+
+    for scale in SCALE_BANK:
+        scaled, step_vectors, step_rms = _measure_scale(
+            model,
+            candidate=candidate,
+            target_data=target_data,
+            calibration=calibration,
+            scale=scale,
+        )
+        resultant = {
+            skill: float(debts[skill]) + float(step_rms[skill])
+            for skill in protected
+        }
+        trials.append(
+            ResidualTrial(
+                scale=float(scale),
+                target_improvement=float(scaled.improvement),
+                step_rms_by_skill=step_rms,
+                resultant_rms_by_skill=resultant,
+            )
+        )
+        useful = scaled.improvement > MIN_TARGET_IMPROVEMENT
+        compatible = all(value <= float(budget) + 1e-12 for value in resultant.values())
+        if useful and compatible:
+            return ResidualDecision(
+                accepted=True,
+                reason="scalar_debt_safe",
+                scale=float(scale),
+                target_improvement=float(scaled.improvement),
+                scaled_candidate=scaled,
+                step_vectors_by_skill=step_vectors,
+                step_rms_by_skill=step_rms,
+                resultant_rms_by_skill=resultant,
+                trials=tuple(trials),
+            )
+
+    return ResidualDecision(
+        accepted=False,
+        reason="scalar_debt_exhausted",
+        scale=0.0,
+        target_improvement=0.0,
+        scaled_candidate=_zero_candidate(model, candidate, target_data),
+        step_vectors_by_skill={},
+        step_rms_by_skill={},
+        resultant_rms_by_skill={},
+        trials=tuple(trials),
+    )
+
+
+def consider_residual_candidate(
+    model,
+    *,
+    candidate: CandidateEdit,
+    target_data,
+    calibration,
+    residuals: dict[int, np.ndarray],
+    budget: float,
+) -> ResidualDecision:
+    """Largest useful scale whose signed carried residual remains in budget."""
+    trials: list[ResidualTrial] = []
+    protected = tuple(skill for skill in range(3) if skill != int(candidate.skill))
+
+    for scale in SCALE_BANK:
+        scaled, step_vectors, step_rms = _measure_scale(
+            model,
+            candidate=candidate,
+            target_data=target_data,
+            calibration=calibration,
+            scale=scale,
+        )
+        resultant_vectors = {
+            skill: np.asarray(residuals[skill], dtype=float) + step_vectors[skill]
+            for skill in protected
+        }
+        resultant = {
+            skill: residual_rms(resultant_vectors[skill])
+            for skill in protected
+        }
+        trials.append(
+            ResidualTrial(
+                scale=float(scale),
+                target_improvement=float(scaled.improvement),
+                step_rms_by_skill=step_rms,
+                resultant_rms_by_skill=resultant,
+            )
+        )
+        useful = scaled.improvement > MIN_TARGET_IMPROVEMENT
+        compatible = all(value <= float(budget) + 1e-12 for value in resultant.values())
+        if useful and compatible:
+            return ResidualDecision(
+                accepted=True,
+                reason="signed_residual_safe",
+                scale=float(scale),
+                target_improvement=float(scaled.improvement),
+                scaled_candidate=scaled,
+                step_vectors_by_skill=step_vectors,
+                step_rms_by_skill=step_rms,
+                resultant_rms_by_skill=resultant,
+                trials=tuple(trials),
+            )
+
+    return ResidualDecision(
+        accepted=False,
+        reason="signed_residual_budget_exhausted",
+        scale=0.0,
+        target_improvement=0.0,
+        scaled_candidate=_zero_candidate(model, candidate, target_data),
+        step_vectors_by_skill={},
+        step_rms_by_skill={},
+        resultant_rms_by_skill={},
+        trials=tuple(trials),
     )
