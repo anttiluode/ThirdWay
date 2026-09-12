@@ -1,10 +1,15 @@
 """Gate T6: persistent skill compatibility in a shared recurrent model.
 
-The gate starts from one deterministic 24-state recurrent substrate shared by
-three temporal skills. Candidate learning events are persistent rank-1 edits to
-the recurrent matrix. Candidate generation is deliberately target-only: it may
-measure whether an edit helps the skill that proposed it, but it cannot inspect
-cross-skill damage before the later compatibility stage.
+One deterministic 24-state tanh recurrent substrate is shared by three temporal
+skills. Candidate learning events are persistent rank-1 edits to the recurrent
+matrix. Candidate generation is target-only. Compatibility is evaluated only
+after useful candidates exist.
+
+T6 compares static parameter-space signals with a directional causal score: the
+candidate edit is linearized along trajectories of a retained skill and its
+state perturbation is propagated through the ordered recurrent Jacobians. The
+world, identity split, collision threshold, predictors, and pass criteria were
+frozen before held-out predictor results were observed.
 """
 
 from __future__ import annotations
@@ -38,6 +43,7 @@ CONFIG = WorldConfig()
 AMPLITUDES = (-0.30, -0.20, -0.12, -0.07, 0.07, 0.12, 0.20, 0.30)
 DIRECTIONS_PER_CANDIDATE = 8
 COLLISION_THRESHOLD = 0.02
+PREDICTOR_EXAMPLES = 48
 
 
 @dataclass(frozen=True)
@@ -101,6 +107,26 @@ class PairCase:
     @property
     def retained_id(self) -> tuple[int, int]:
         return self.retained.identity
+
+
+@dataclass(frozen=True)
+class PredictorMetrics:
+    damage_correlation: float
+    test_auroc: float
+    test_balanced_accuracy: float
+    threshold: float
+
+
+@dataclass(frozen=True)
+class Summary:
+    cases: int
+    train_cases: int
+    test_cases: int
+    all_candidates_individually_useful: bool
+    heldout_collision_fraction: float
+    heldout_safe_fraction: float
+    predictors: dict[str, PredictorMetrics]
+    skill_pair_families_with_positive_causal_advantage: int
 
 
 def make_dataset(
@@ -294,13 +320,7 @@ def generate_candidates(
     *,
     min_improvement: float = 1e-4,
 ) -> list[CandidateEdit]:
-    """Generate useful rank-1 edits using target-skill utility only.
-
-    Each candidate identity owns a fixed bundle of eight random rank-1
-    directions. The best direction/amplitude is selected using only a dataset
-    slice containing the target skill. Cross-skill performance is inaccessible
-    to this function by construction.
-    """
+    """Generate useful rank-1 edits using target-skill utility only."""
     target = dataset.for_skill(skill)
     base_loss = mean_squared_loss(model, target, skill)
     hidden_dim = model.W.shape[0]
@@ -491,3 +511,404 @@ def _default_pair_battery() -> tuple[PairCase, ...]:
 
 def build_default_pair_battery() -> list[PairCase]:
     return list(_default_pair_battery())
+
+
+def _per_example_gradients(
+    model: Model,
+    dataset: Dataset,
+    skill: int,
+    *,
+    examples: int = PREDICTOR_EXAMPLES,
+) -> np.ndarray:
+    """Exact BPTT gradients of per-example squared error with respect to W."""
+    subset = dataset.for_skill(skill)
+    n = min(int(examples), subset.targets.size)
+    x = subset.inputs[:n]
+    targets = subset.targets[:n]
+    states = batch_hidden_trajectories(model, x)
+    prediction = states[:, -1, :] @ model.C
+
+    adjoint = 2.0 * (prediction - targets)[:, None] * model.C[None, :]
+    gradients = np.zeros((n, model.W.shape[0], model.W.shape[1]), dtype=float)
+
+    for t in range(x.shape[1] - 1, -1, -1):
+        local = adjoint * (1.0 - states[:, t + 1, :] ** 2)
+        gradients += np.einsum("ni,nj->nij", local, states[:, t, :])
+        adjoint = local @ model.W
+
+    return gradients
+
+
+def fisher_diagonal(
+    model: Model,
+    dataset: Dataset,
+    skill: int,
+    *,
+    examples: int = PREDICTOR_EXAMPLES,
+) -> np.ndarray:
+    """Diagonal empirical Fisher-style statistic from squared per-example gradients."""
+    gradients = _per_example_gradients(model, dataset, skill, examples=examples)
+    return np.mean(gradients**2, axis=0)
+
+
+def _static_jacobian_signature(
+    base: Model,
+    edit: CandidateEdit,
+    dataset: Dataset,
+    *,
+    examples: int = PREDICTOR_EXAMPLES,
+) -> np.ndarray:
+    """Average one-step Jacobian change without time-ordered transport."""
+    subset = dataset.for_skill(edit.skill)
+    n = min(int(examples), subset.targets.size)
+    x = subset.inputs[:n]
+    states = batch_hidden_trajectories(base, x)
+    edited_w = base.W + edit.delta_w
+    signature = np.zeros_like(base.W)
+    count = 0
+
+    for t in range(x.shape[1]):
+        h_t = states[:, t, :]
+        input_t = x[:, t, :]
+        z0 = h_t @ base.W.T + input_t @ base.B.T + base.b
+        z1 = h_t @ edited_w.T + input_t @ base.B.T + base.b
+        y0 = np.tanh(z0)
+        y1 = np.tanh(z1)
+        d0 = 1.0 - y0**2
+        d1 = 1.0 - y1**2
+        j0 = d0[:, :, None] * base.W[None, :, :]
+        j1 = d1[:, :, None] * edited_w[None, :, :]
+        signature += np.sum(j1 - j0, axis=0)
+        count += n
+
+    return signature / max(1, count)
+
+
+def _causal_harm_score(
+    current: Model,
+    perturbation: np.ndarray,
+    dataset: Dataset,
+    skill: int,
+    *,
+    examples: int = PREDICTOR_EXAMPLES,
+    shuffled: bool = False,
+) -> float:
+    """First-order persistent-edit harm on one retained task.
+
+    The candidate acts at every recurrent step. Its induced hidden-state change
+    is propagated through the current model's ordered recurrent tangent. The
+    shuffled control keeps the same injections but permutes only the Jacobian
+    damping sequence used to transport earlier perturbations.
+    """
+    subset = dataset.for_skill(skill)
+    n = min(int(examples), subset.targets.size)
+    x = subset.inputs[:n]
+    targets = subset.targets[:n]
+    states = batch_hidden_trajectories(current, x)
+    prediction = states[:, -1, :] @ current.C
+    time_steps = x.shape[1]
+
+    damp = 1.0 - states[:, 1:, :] ** 2
+    if shuffled:
+        order = np.random.default_rng(991).permutation(time_steps)
+    else:
+        order = np.arange(time_steps)
+
+    delta = np.zeros((n, current.W.shape[0]), dtype=float)
+    for t in range(time_steps):
+        h_t = states[:, t, :]
+        injection = (h_t @ perturbation.T) * damp[:, t, :]
+        transported = (delta @ current.W.T) * damp[:, order[t], :]
+        delta = transported + injection
+
+    delta_output = delta @ current.C
+    first_order_loss_change = 2.0 * (prediction - targets) * delta_output
+    return float(np.mean(np.maximum(first_order_loss_change, 0.0)))
+
+
+def _auroc(scores: np.ndarray, truth: np.ndarray) -> float:
+    truth = np.asarray(truth, dtype=bool)
+    scores = np.asarray(scores, dtype=float)
+    positive = scores[truth]
+    negative = scores[~truth]
+    if positive.size == 0 or negative.size == 0:
+        return float("nan")
+    greater = positive[:, None] > negative[None, :]
+    equal = positive[:, None] == negative[None, :]
+    return float(np.mean(greater) + 0.5 * np.mean(equal))
+
+
+def _correlation(scores: np.ndarray, target: np.ndarray) -> float:
+    scores = np.asarray(scores, dtype=float)
+    target = np.asarray(target, dtype=float)
+    if scores.size < 2 or np.std(scores) < 1e-15 or np.std(target) < 1e-15:
+        return 0.0
+    return float(np.corrcoef(scores, target)[0, 1])
+
+
+def _balanced_accuracy(prediction: np.ndarray, truth: np.ndarray) -> float:
+    prediction = np.asarray(prediction, dtype=bool)
+    truth = np.asarray(truth, dtype=bool)
+    positive = truth
+    negative = ~truth
+    tpr = float(np.mean(prediction[positive])) if np.any(positive) else 0.0
+    tnr = float(np.mean(~prediction[negative])) if np.any(negative) else 0.0
+    return 0.5 * (tpr + tnr)
+
+
+def _choose_threshold(scores: np.ndarray, truth: np.ndarray) -> float:
+    scores = np.asarray(scores, dtype=float)
+    truth = np.asarray(truth, dtype=bool)
+    values = np.unique(scores)
+    if values.size <= 1:
+        candidates = np.asarray([-np.inf, np.inf], dtype=float)
+    else:
+        mids = (values[:-1] + values[1:]) / 2.0
+        candidates = np.concatenate(([-np.inf], mids, [np.inf]))
+
+    prevalence = float(np.mean(truth))
+    best_key: tuple[float, float] | None = None
+    best_threshold = float("inf")
+    for threshold in candidates:
+        pred = scores > threshold
+        balanced = _balanced_accuracy(pred, truth)
+        prevalence_match = -abs(float(np.mean(pred)) - prevalence)
+        key = (balanced, prevalence_match)
+        if best_key is None or key > best_key:
+            best_key = key
+            best_threshold = float(threshold)
+    return best_threshold
+
+
+def _predictor_metrics(
+    scores: np.ndarray,
+    damage: np.ndarray,
+    truth: np.ndarray,
+    train: np.ndarray,
+    test: np.ndarray,
+) -> PredictorMetrics:
+    threshold = _choose_threshold(scores[train], truth[train])
+    test_prediction = scores[test] > threshold
+    return PredictorMetrics(
+        damage_correlation=_correlation(scores[test], damage[test]),
+        test_auroc=_auroc(scores[test], truth[test]),
+        test_balanced_accuracy=_balanced_accuracy(test_prediction, truth[test]),
+        threshold=float(threshold),
+    )
+
+
+def _score_battery(
+    cases: list[PairCase],
+    base: Model,
+    data: Dataset,
+) -> dict[str, np.ndarray]:
+    """Compute the frozen pre-commit signals for every ordered pair."""
+    scores: dict[str, list[float]] = {
+        "parameter": [],
+        "gradient": [],
+        "fisher": [],
+        "static_jacobian": [],
+        "causal": [],
+        "causal_shuffled": [],
+        "causal_reversed": [],
+        "oracle": [],
+    }
+
+    retained_cache: dict[tuple[int, int], tuple[Model, np.ndarray, np.ndarray]] = {}
+    static_cache: dict[tuple[int, int], np.ndarray] = {}
+
+    def retained_analysis(edit: CandidateEdit) -> tuple[Model, np.ndarray, np.ndarray]:
+        if edit.identity not in retained_cache:
+            model = apply_edit(base, edit)
+            per_example = _per_example_gradients(
+                model,
+                data,
+                edit.skill,
+                examples=PREDICTOR_EXAMPLES,
+            )
+            retained_cache[edit.identity] = (
+                model,
+                np.mean(per_example, axis=0),
+                np.mean(per_example**2, axis=0),
+            )
+        return retained_cache[edit.identity]
+
+    def static_signature(edit: CandidateEdit) -> np.ndarray:
+        if edit.identity not in static_cache:
+            static_cache[edit.identity] = _static_jacobian_signature(
+                base,
+                edit,
+                data,
+                examples=PREDICTOR_EXAMPLES,
+            )
+        return static_cache[edit.identity]
+
+    for case in cases:
+        retained = case.retained
+        candidate = case.candidate
+        retained_model, old_gradient, old_fisher = retained_analysis(retained)
+
+        scores["parameter"].append(
+            _cosine_matrix(retained.delta_w, candidate.delta_w)
+        )
+        scores["gradient"].append(
+            _cosine_matrix(old_gradient, candidate.delta_w)
+        )
+        fisher_energy = float(np.sum(old_fisher * candidate.delta_w**2))
+        candidate_energy = float(np.sum(candidate.delta_w**2))
+        scores["fisher"].append(
+            float(np.sqrt(fisher_energy / max(candidate_energy, 1e-15)))
+        )
+        scores["static_jacobian"].append(
+            _cosine_matrix(static_signature(retained), static_signature(candidate))
+        )
+        scores["causal"].append(
+            _causal_harm_score(
+                retained_model,
+                candidate.delta_w,
+                data,
+                retained.skill,
+                examples=PREDICTOR_EXAMPLES,
+                shuffled=False,
+            )
+        )
+        scores["causal_shuffled"].append(
+            _causal_harm_score(
+                retained_model,
+                candidate.delta_w,
+                data,
+                retained.skill,
+                examples=PREDICTOR_EXAMPLES,
+                shuffled=True,
+            )
+        )
+
+        candidate_model = apply_edit(base, candidate)
+        scores["causal_reversed"].append(
+            _causal_harm_score(
+                candidate_model,
+                retained.delta_w,
+                data,
+                candidate.skill,
+                examples=PREDICTOR_EXAMPLES,
+                shuffled=False,
+            )
+        )
+        scores["oracle"].append(float(case.damage.old_skill_damage))
+
+    return {name: np.asarray(values, dtype=float) for name, values in scores.items()}
+
+
+@lru_cache(maxsize=1)
+def _run_cached() -> Summary:
+    cases = build_default_pair_battery()
+    base = make_seed_model(seed=23)
+    evaluation_data = make_dataset(seed=53, examples_per_skill=128)
+    score_map = _score_battery(cases, base, evaluation_data)
+
+    train = np.asarray([case.split == "train" for case in cases], dtype=bool)
+    test = ~train
+    damage = np.asarray([case.damage.old_skill_damage for case in cases], dtype=float)
+    truth = damage > COLLISION_THRESHOLD
+
+    metrics = {
+        name: _predictor_metrics(values, damage, truth, train, test)
+        for name, values in score_map.items()
+    }
+
+    static_names = ("parameter", "gradient", "fisher", "static_jacobian")
+    positive_families = 0
+    for retained_skill in range(3):
+        for candidate_skill in range(3):
+            if retained_skill == candidate_skill:
+                continue
+            family = np.asarray(
+                [
+                    test[i]
+                    and case.retained.skill == retained_skill
+                    and case.candidate.skill == candidate_skill
+                    for i, case in enumerate(cases)
+                ],
+                dtype=bool,
+            )
+            family_truth = truth[family]
+            if not np.any(family_truth) or np.all(family_truth):
+                continue
+            causal_auc = _auroc(score_map["causal"][family], family_truth)
+            static_best = max(
+                _auroc(score_map[name][family], family_truth) for name in static_names
+            )
+            if causal_auc > static_best + 1e-12:
+                positive_families += 1
+
+    heldout_truth = truth[test]
+    all_useful = all(
+        case.retained.improvement > 1e-4 and case.candidate.improvement > 1e-4
+        for case in cases
+    )
+
+    return Summary(
+        cases=len(cases),
+        train_cases=int(np.sum(train)),
+        test_cases=int(np.sum(test)),
+        all_candidates_individually_useful=bool(all_useful),
+        heldout_collision_fraction=float(np.mean(heldout_truth)),
+        heldout_safe_fraction=float(np.mean(~heldout_truth)),
+        predictors=metrics,
+        skill_pair_families_with_positive_causal_advantage=int(positive_families),
+    )
+
+
+def run() -> Summary:
+    return _run_cached()
+
+
+def _passes_gate(summary: Summary) -> bool:
+    causal = summary.predictors["causal"]
+    static_names = ("parameter", "gradient", "fisher", "static_jacobian")
+    return bool(
+        summary.cases == 192
+        and summary.test_cases == 96
+        and summary.all_candidates_individually_useful
+        and summary.heldout_collision_fraction >= 0.20
+        and summary.heldout_safe_fraction >= 0.20
+        and causal.damage_correlation > 0.70
+        and all(
+            causal.test_auroc >= summary.predictors[name].test_auroc + 0.10
+            for name in static_names
+        )
+        and summary.skill_pair_families_with_positive_causal_advantage >= 4
+        and summary.predictors["oracle"].test_auroc >= causal.test_auroc - 1e-12
+        and causal.test_auroc
+        >= summary.predictors["causal_shuffled"].test_auroc + 0.10
+        and causal.test_auroc
+        >= summary.predictors["causal_reversed"].test_auroc + 0.10
+    )
+
+
+def main() -> None:
+    summary = run()
+    print(
+        f"cases={summary.cases} train={summary.train_cases} test={summary.test_cases} "
+        f"collision_fraction={summary.heldout_collision_fraction:.6f} "
+        f"safe_fraction={summary.heldout_safe_fraction:.6f}"
+    )
+    for name, metric in summary.predictors.items():
+        print(
+            f"{name:17s} r={metric.damage_correlation:.6f} "
+            f"auroc={metric.test_auroc:.6f} "
+            f"balanced_acc={metric.test_balanced_accuracy:.6f} "
+            f"threshold={metric.threshold:.6g}"
+        )
+    print(
+        "ordered skill-pair families with causal advantage="
+        f"{summary.skill_pair_families_with_positive_causal_advantage}/6"
+    )
+    passed = _passes_gate(summary)
+    print("PASS" if passed else "FAIL")
+    if not passed:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
