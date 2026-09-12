@@ -1,10 +1,10 @@
 """T7A: compatible partial writes.
 
 T6 showed that a binary compatibility veto can protect retained computation but
-mostly freezes learning.  T7A keeps the proposed rank-1 direction fixed and
-searches only a predeclared descending amplitude bank.  The largest fraction
+mostly freezes learning. T7A keeps the proposed rank-1 direction fixed and
+searches only a predeclared descending amplitude bank. The largest fraction
 that remains target-useful and stays below every protected-skill dynamic-risk
-threshold may become permanent.  No compensation or direction rotation is
+threshold may become permanent. No compensation or direction rotation is
 allowed in this stage.
 """
 
@@ -55,6 +55,26 @@ class ScaledDecision:
         if not self.risk_by_skill:
             return 0.0
         return float(max(self.risk_by_skill.values()))
+
+
+@dataclass(frozen=True)
+class T7ADemoSummary:
+    candidates_considered: int
+    candidate_seeds: tuple[int, ...]
+    reject_only_candidate_seeds: tuple[int, ...]
+    accept_all_candidate_seeds: tuple[int, ...]
+    oracle_candidate_seeds: tuple[int, ...]
+    safe_step_scales: tuple[float, ...]
+    safe_step_nonzero_writes: int
+    reject_only_accepted: int
+    safe_step_old_skill_accuracy: float
+    reject_only_old_skill_accuracy: float
+    safe_step_switch_penalty: float
+    reject_only_switch_penalty: float
+    safe_step_mean_accuracy: float
+    reject_only_mean_accuracy: float
+    base_mean_accuracy: float
+    oracle_used_for_safe_step: bool
 
 
 def _scaled_candidate(
@@ -137,12 +157,13 @@ def consider_scaled_candidate(
                 trials=tuple(trials),
             )
 
+    zero_loss = float(mean_squared_loss(model, target_data, candidate.skill))
     zero = CandidateEdit(
         skill=int(candidate.skill),
         seed=int(candidate.seed),
         delta_w=np.zeros_like(candidate.delta_w),
-        base_loss=float(mean_squared_loss(model, target_data, candidate.skill)),
-        edited_loss=float(mean_squared_loss(model, target_data, candidate.skill)),
+        base_loss=zero_loss,
+        edited_loss=zero_loss,
     )
     last_risk = trials[-1].risk_by_skill if trials else {}
     return ScaledDecision(
@@ -154,4 +175,27 @@ def consider_scaled_candidate(
         risk_threshold=float(risk_threshold),
         scaled_candidate=zero,
         trials=tuple(trials),
+    )
+
+
+def t7a_demo(seed: int = 0) -> T7ADemoSummary:
+    """RED-phase result shell; the four-learner experiment is not implemented."""
+    candidate_seeds = tuple(range(32 + 1000 * int(seed), 44 + 1000 * int(seed)))
+    return T7ADemoSummary(
+        candidates_considered=12,
+        candidate_seeds=candidate_seeds,
+        reject_only_candidate_seeds=candidate_seeds,
+        accept_all_candidate_seeds=candidate_seeds,
+        oracle_candidate_seeds=candidate_seeds,
+        safe_step_scales=(0.0,) * 12,
+        safe_step_nonzero_writes=0,
+        reject_only_accepted=1,
+        safe_step_old_skill_accuracy=0.0,
+        reject_only_old_skill_accuracy=0.0,
+        safe_step_switch_penalty=1.0,
+        reject_only_switch_penalty=0.0,
+        safe_step_mean_accuracy=0.0,
+        reject_only_mean_accuracy=0.0,
+        base_mean_accuracy=0.0,
+        oracle_used_for_safe_step=False,
     )
