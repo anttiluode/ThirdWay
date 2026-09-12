@@ -49,12 +49,6 @@ In context A the direct cue is reliable; in context B the relational cue is reli
 
 The reward packet contains no `(context, route)` tag. Instead each route/context location keeps a decaying local policy-score eligibility trace. The delayed scalar multiplies those traces and rewrites the context-dependent gains.
 
-Attackers destroy the address in different ways:
-
-- **pooled**: collapse all eligibility traces to one shared scalar;
-- **shuffled**: keep temporal memory but swap route identity;
-- **current-only**: discard the delayed causal trace entirely.
-
 On the fixed 8-seed battery (`5000` events/seed, delays `3..10`):
 
 | learner | late route accuracy | late scalar reward | task accuracy | worst-seed route accuracy |
@@ -73,7 +67,7 @@ context B -> [direct 0.044969, relational 0.955031]
 
 Pooling/current-only leave both contexts at exactly `[0.5, 0.5]`. Shuffling the route address learns the near-opposite router.
 
-The result is deliberately narrower than the phrase “self-rewriting spectral router.” What T0 establishes is:
+T0 establishes a narrow fusion result:
 
 ```text
 separated computational modes
@@ -84,28 +78,64 @@ separated computational modes
 = gains can be rewritten without putting the route address in the reward
 ```
 
-Pooling preserves some memory but destroys the computational address and therefore cannot learn the context-specific router. Shuffling the address is worse than forgetting it: it confidently reinforces the wrong highway.
+See [`T0_RESULTS.md`](T0_RESULTS.md).
 
-## What T0 does *not* establish
+## Gate T1 — the road moves, identity continues
 
-- The two computational modes are seeded, not spontaneously discovered.
-- Their internal geometry is fixed; only their routing gains change.
-- The route-local traces are decaying rather than resonant/off-grid adaptive poles.
-- “Covariant highway” is therefore still a target for later gates, not a result of T0.
+T1 attacks the next hidden assumption: that a computational highway is a fixed vector in parameter coordinates.
+
+Two persistent mode identities rotate continuously through a 2-D basis. At each step their observed vectors are randomly reordered, sign-flipped and noised. A fixed-coordinate matcher keeps comparing against the initialization. A continuation tracker asks which yesterday-road each new candidate became.
+
+The noiseless cocycle is
+
+```math
+L_t = E(t+1)E(t)^\top,
+```
+
+and therefore
+
+```math
+\boxed{L_tE_k(t)=E_k(t+1)}.
+```
+
+Fixed 8-seed battery:
+
+| observer | identity accuracy | contextual route reward |
+|---|---:|---:|
+| fixed initial coordinates | **0.519271** | **0.038542** |
+| **continuation / covariant tracker** | **1.000000** | **1.000000** |
+
+Worst-seed continuation accuracy is `1.000000`; maximum exact covariance residual is `2.937e-16`.
+
+So a road can move completely away from its initial coordinates, even trade coordinate positions with another road, while retaining its computational identity by continuation.
+
+See [`T1_RESULTS.md`](T1_RESULTS.md).
+
+## What we have — and what we do not
+
+T0 gives the **credit half**:
+
+> consequence can find a route because local material preserved the address.
+
+T1 gives the **identity half**:
+
+> the same route can move through coordinates if identity is defined by continuation rather than a frozen vector.
+
+We still do **not** yet have the strong object “self-rewriting spectral router.” The computational families are seeded, T0 keeps their geometry fixed, and T1 does not yet make delayed consequence rewrite a moving road.
 
 ## Next gates
 
-**T1 — moving road.** Allow each computational family to drift in parameter coordinates while preserving its counterfactual identity. Test whether routing can track continuation of a mode rather than a fixed vector.
+**T2 — consequence on a moving road.** Fuse T0 and T1 literally. Let a computational family drift while delayed scalar reward is still in flight. Compare credit attached to stale coordinates against credit transported with the covariant identity.
 
-**T2 — spectral local credit.** Replace scalar decays with damped resonant eligibility and make the useful pole change. The route should adapt its temporal law without the reward carrying an address.
+**T3 — spectral local credit.** Replace scalar decays with damped resonant eligibility and make the useful pole change. The route should adapt its temporal law without the reward carrying an address.
 
-**T3 — two useful modes on one route.** Attack purification directly: one physical route must preserve two causal temporal modes without averaging or extinguishing one.
+**T4 — two useful modes on one route.** Attack purification directly: one physical route must preserve two causal temporal modes without averaging or extinguishing one.
 
-**T4 — discovered approaches.** Remove the hand-labelled direct/relational decomposition. Evolve generic tiny networks, cluster survivors only by interventions/Jacobians/hidden trajectories, and ask whether context can amplify the discovered computational families while delayed local consequence rewrites the router.
+**T5 — discovered approaches.** Remove the hand-labelled direct/relational decomposition. Evolve generic tiny networks, cluster survivors only by interventions/Jacobians/hidden trajectories, and ask whether context can amplify the discovered computational families while delayed local consequence rewrites the router.
 
 That is the first point at which ThirdWay would deserve the strong phrase:
 
-> **self-rewriting spectral router**
+> **self-rewriting spectral router over discovered computational highways**
 
 Until then, the repo keeps the claims smaller than the idea.
 
@@ -113,7 +143,8 @@ Until then, the repo keeps the claims smaller than the idea.
 
 ```bash
 python -m experiments.gate_t0_fusion
+python -m experiments.gate_t1_moving_road
 pytest -q
 ```
 
-See [`T0_RESULTS.md`](T0_RESULTS.md) for the full receipt and [`THEORY.md`](THEORY.md) for the formal object and gate sequence.
+See [`THEORY.md`](THEORY.md) for the formal object and gate sequence.
