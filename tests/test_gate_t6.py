@@ -1,7 +1,9 @@
 import numpy as np
 
 from experiments.gate_t6_persistent_skill_compatibility import (
+    COLLISION_THRESHOLD,
     Dataset,
+    build_default_pair_battery,
     evaluate_all,
     generate_candidates,
     make_dataset,
@@ -68,3 +70,25 @@ def test_candidate_generation_cannot_see_non_target_labels():
         assert np.array_equal(left.delta_w, right.delta_w)
         assert left.base_loss == right.base_loss
         assert left.edited_loss == right.edited_loss
+
+
+def test_pair_battery_uses_unseen_edit_identities_and_has_both_outcomes():
+    battery = build_default_pair_battery()
+
+    assert len(battery) == 192
+    train_ids = {case.candidate_id for case in battery if case.split == "train"}
+    test_ids = {case.candidate_id for case in battery if case.split == "test"}
+    assert train_ids.isdisjoint(test_ids)
+
+    held = [case for case in battery if case.split == "test"]
+    assert len(held) == 96
+    collided = [case for case in held if case.damage.old_skill_damage > COLLISION_THRESHOLD]
+    safe = [case for case in held if case.damage.old_skill_damage <= COLLISION_THRESHOLD]
+    assert len(collided) >= 0.20 * len(held)
+    assert len(safe) >= 0.20 * len(held)
+
+    assert all(case.retained.skill != case.candidate.skill for case in battery)
+    assert all(case.retained.improvement > 1e-4 for case in battery)
+    assert all(case.candidate.improvement > 1e-4 for case in battery)
+    assert all(np.isfinite(case.damage.leakage_delta) for case in battery)
+    assert all(np.isfinite(case.damage.switch_cost_delta) for case in battery)
