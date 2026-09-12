@@ -242,19 +242,26 @@ fine ordering of intervening tangent transport
                                      not shown necessary
 ```
 
-That distinction matters for the next engineering step. A practical continual-learning guard can still use the measured directional risk score, but it must be presented as an empirical consolidation heuristic whose advantage is currently tied to **which retained computation is susceptible**, not to a proven need for exact causal time ordering.
+That distinction matters for engineering. A practical continual-learning guard can use the measured directional risk score, but it must be presented as an empirical consolidation heuristic whose advantage is currently tied to **which retained computation is susceptible**, not to a proven need for exact causal time ordering.
 
-## Demo boundary
+## Practical consolidation outcome
 
-The next implementation step demonstrates the network learning continually with the same candidate generator and the same directional risk score:
+The follow-on demo is complete and is recorded separately in [`T6_DEMO_RESULTS.md`](T6_DEMO_RESULTS.md).
+
+It uses the same candidate generator and risk score on a frozen 12-event stream. After review, the guard was corrected so that every non-target skill already present in the baseline network is protected from the first new write onward.
+
+The corrected result is:
 
 ```text
-propose useful candidate
--> estimate risk to retained skills
--> accept or reject/defer
--> compare with accepting every useful candidate
+                 A      B      C      mean   old A/B mean
+guarded        .844   .656   .648    .716      .750
+accept-all     .664   .641   .672    .659      .652
 ```
 
-That demo is valuable even though T6 is a frozen scientific FAIL. It tests whether the surviving signal can improve an actual sequence of consolidation decisions.
+The safety filter reduces forgetting and switching disruption, but it accepts only `1/12` proposed permanent writes. Its final aggregate mean remains slightly below the starting network (`.716` versus `.719`).
 
-A successful demo must not be described as retroactively passing T6.
+So the practical T6 conclusion is not “continual learning solved.” It is:
+
+> **directional dynamic susceptibility is useful enough to protect existing computation, but a binary veto produces protective stagnation.**
+
+That failure defines T7: keep the proposal direction fixed and search for the largest compatible partial write before rejecting it entirely.
