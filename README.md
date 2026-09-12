@@ -5,7 +5,7 @@
 ThirdWay is the separate fusion arm between:
 
 - [GeometricNeuronV25GeneticAlgoAndFanningNeuron](https://github.com/anttiluode/GeometricNeuronV25GeneticAlgoAndFanningNeuron): separated causal routes, delayed scalar consequence, adaptive eligibility timescales and resonant temporal modes.
-- [GAx](https://github.com/anttiluode/GAx): positive/evolutionary operators, modal purification, separated computational approaches, context-dependent gain and covariant computational subspaces.
+- [GAx](https://github.com/anttiluode/GAx): evolutionary operators, modal purification, separated computational approaches, context-dependent gain and covariant computational subspaces.
 
 The rule is strict: **ThirdWay inherits questions, not conclusions.** Every fusion claim gets its own executable gate and attackers.
 
@@ -29,13 +29,12 @@ See [`THEORY.md`](THEORY.md) for the formal object and [`RETROSPECTIVE.md`](RETR
 
 ## T0 — the reward has no address, the substrate does
 
-Two seeded, counterfactually different computations share one router. Reward is a delayed scalar with no `(context, route)` label.
+Delayed reward is only a scalar. Route-local eligibility keeps the missing causal address in the substrate.
 
 | learner | late route accuracy | late reward | task accuracy |
 |---|---:|---:|---:|
 | **route-local eligibility** | **0.952750** | **0.955109** | **0.977875** |
-| pooled eligibility | 0.512125 | 0.517902 | 0.759125 |
-| current-only | 0.512125 | 0.517902 | 0.759125 |
+| pooled/current-only | 0.512125 | 0.517902 | 0.759125 |
 | shuffled route identity | 0.043000 | 0.049467 | 0.524750 |
 
 > **The reward need not carry the address if the material has kept it locally.**
@@ -46,7 +45,7 @@ Two seeded, counterfactually different computations share one router. Reward is 
 
 ## T1 — the road moves, identity continues
 
-Two computational modes rotate through coordinates. A fixed-coordinate identity fails; a continuation tracker follows the moving road.
+Two computational modes rotate through coordinates. Fixed-coordinate identity fails; continuation follows the moving computation.
 
 | observer | identity accuracy | contextual route reward |
 |---|---:|---:|
@@ -65,7 +64,7 @@ Two computational modes rotate through coordinates. A fixed-coordinate identity 
 
 ## T2 — credit must move with the road
 
-Reward is delayed 3–10 events while the computational basis rotates by `0.32 rad/event`.
+Reward is delayed while the computational basis moves. A persistent trace in stale coordinates becomes wrong credit.
 
 | credit rule | late route accuracy | late reward | task accuracy |
 |---|---:|---:|---:|
@@ -76,15 +75,13 @@ Reward is delayed 3–10 events while the computational basis rotates by `0.32 r
 \boxed{\textbf{credit identity must be covariant with computational identity}.}
 ```
 
-> **stale credit** — the memory survives, but now points at yesterday's computation.
-
 [`T2_RESULTS.md`](T2_RESULTS.md)
 
 ---
 
 ## T3 — credit cannot be finer than identifiable computation
 
-When two moving spectral axes become nearly degenerate, ordinary vector tracking becomes unstable. An ambiguity-block tracker follows the coarser identifiable subspace instead.
+Near degeneracy makes individual spectral axes unstable. Ambiguity blocks keep the coarser identifiable subspace; a second operator is queried only when the primary observation is mathematically unable to identify the finer routes.
 
 | tracker | late route accuracy | semantic fidelity |
 |---|---:|---:|
@@ -92,7 +89,7 @@ When two moving spectral axes become nearly degenerate, ordinary vector tracking
 | **ambiguity blocks** | **0.9525** | **0.9967** |
 | oracle | 0.9525 | 1.0000 |
 
-Then the hidden axes rotate by 90 degrees *inside an exactly degenerate subspace*. The primary operator is mathematically blind to that rotation. A second diagnostic operator is allowed only while the primary operator cannot identify the individual routes.
+In the exact hidden-gauge attack:
 
 | tracker | late route accuracy | semantic fidelity | extra query fraction |
 |---|---:|---:|---:|
@@ -104,28 +101,24 @@ Then the hidden axes rotate by 90 degrees *inside an exactly degenerate subspace
 \boxed{\textbf{resolution of credit} \le \textbf{resolution of identifiable computation}.}
 ```
 
-If the required write is finer than the current evidence, **ask another question before writing**.
-
 [`T3_RESULTS.md`](T3_RESULTS.md)
 
 ---
 
 ## T4 — compatibility of learning is causal, not geometric
 
-Kompressori found low-rank experience-induced operator changes and interference between overlapping changes. CausalHorizon supplied the exact time-ordered interaction coordinate
+Kompressori's low-rank experience-induced operator changes meet CausalHorizon's exact propagated interaction coordinate
 
 ```math
 \Omega_{ji}=V_j^*\Phi(\tau_j,\tau_i+1)U_i.
 ```
 
-Across 192 balanced exact linear cases:
+Across 192 exact linear cases:
 
 | collision predictor | accuracy | precision | recall |
 |---|---:|---:|---:|
-| **propagated causal overlap** `|Omega_ji|` | **1.000** | **1.000** | **1.000** |
-| static overlap `|V_j^T U_i|` | 0.333 | 0.000 | 0.000 |
-
-Same raw coordinate can be harmless after transport; different raw coordinates can collide exactly.
+| **propagated causal overlap** | **1.000** | **1.000** | **1.000** |
+| static overlap | 0.333 | 0.000 | 0.000 |
 
 > **Compatibility is about where an edit's consequence arrives, not merely where its parameters live.**
 
@@ -135,22 +128,9 @@ Same raw coordinate can be harmless after transport; different raw coordinates c
 
 ## T5 — nonlinear collision radar
 
-T4's `Omega` result was exact and linear. T5 moves the same question into a driven `tanh` recurrent system with finite rank-1 edits.
+T5 moves the T4 question into a driven `tanh` recurrent system with finite rank-1 edits. A single-edit first-order causal forecast predicts the finite nonlinear interaction on held-out sites.
 
-The target is now the measured finite nonlinear change in the **marginal action of the later edit**. The causal predictor does not run the joint pair. It measures one edit in isolation, transports that perturbation through the unedited recurrent Jacobians, then asks how susceptible the later edit is to the arriving perturbation.
-
-```math
-\widehat{\delta x}_{j}
-=J_{j-1}\cdots J_{i+1}r_i,
-\qquad
-s_{\rm causal}=\|G_j\widehat{\delta x}_{j}\|.
-```
-
-There are 192 cases. Predictor thresholds are fit on source sites 0–7 and frozen before evaluation on held-out sites 8–15.
-
-Correlation with finite nonlinear collision strength:
-
-| predictor | Pearson r |
+| predictor | correlation with finite collision |
 |---|---:|
 | parameter cosine | -0.411329 |
 | activation / Fisher-ish proxy | -0.411329 |
@@ -161,18 +141,84 @@ Held-out collision classification:
 
 | predictor | accuracy | precision | recall |
 |---|---:|---:|---:|
-| parameter cosine | 0.604167 | 0.000000 | 0.000000 |
-| activation / Fisher-ish proxy | 0.604167 | 0.000000 | 0.000000 |
-| static Jacobian-change cosine | 0.604167 | 0.000000 | 0.000000 |
+| three static attackers | 0.604167 | 0.000000 | 0.000000 |
 | **propagated causal susceptibility** | **1.000000** | **1.000000** | **1.000000** |
 
-So the T4 idea survives a first nonlinear attack:
-
-> **A single-edit, first-order causal forecast can predict a finite nonlinear interaction on unseen sites even when raw/static similarity points the wrong way.**
-
-This is still a constructed transport RNN, not yet continual learning in a trained network. The activation attacker is only Fisher-ish, not a Fisher matrix.
+This is still a constructed transport RNN, not yet persistent continual learning.
 
 [`T5_RESULTS.md`](T5_RESULTS.md)
+
+---
+
+## T6 — persistent learning in one shared recurrent network
+
+T6 is the first gate here with permanent task-learning edits in one shared 24-state nonlinear recurrent substrate.
+
+Candidate rank-1 edits are generated using only their own target skill. The held-out battery uses disjoint edit identities and measures actual old-skill damage after both edits become permanent.
+
+### Scientific gate: mixed result, frozen FAIL
+
+| predictor | held-out AUROC |
+|---|---:|
+| parameter cosine | 0.551136 |
+| empirical Fisher | 0.579983 |
+| static Jacobian overlap | 0.542832 |
+| gradient alignment | 0.698427 |
+| **directional dynamic susceptibility** | **0.849213** |
+| shuffled tangent order | **0.858392** |
+| reversed direction | 0.402972 |
+| finite oracle | 1.000000 |
+
+The directional score has `r=0.769216` with finite old-skill damage, beats every tested static attacker by the frozen `+0.10` margin at the primary strength, and wins in `4/6` ordered skill-pair families.
+
+But the strongest hypothesis fails: shuffling detailed tangent time order does not hurt prediction. Ordered and shuffled scores correlate `0.990072` because a **persistent** edit injects a perturbation again at every recurrent step; the last four injections contribute about `66.3%` of the first-order signal.
+
+So T6 supports the narrower claim:
+
+> **Direction-specific dynamic susceptibility of a retained computation predicts persistent cross-skill damage better than the tested static similarity measures.**
+
+It does **not** show that fine tangent time ordering is necessary for that advantage.
+
+[`T6_RESULTS.md`](T6_RESULTS.md)
+
+### Practical demo: use the surviving signal as a consolidation guard
+
+The frozen 12-event schedule is
+
+```text
+A -> B -> C -> B -> A -> C -> A -> B -> C -> B -> A -> C
+```
+
+Both learners receive the **same candidate matrices**. Accept-all commits every locally useful proposal. The guarded learner commits only if the proposal remains useful in its current state and predicted dynamic risk to retained other skills stays below the threshold learned from the frozen T6 training split.
+
+Starting accuracy:
+
+```text
+A=.859 B=.664 C=.633    mean=.719
+```
+
+After 12 persistent proposals:
+
+| learner | A | B | C | mean | A/B old-at-final mean | switch penalty |
+|---|---:|---:|---:|---:|---:|---:|
+| **guarded** | **0.859** | 0.625 | 0.664 | **0.716** | **0.742** | **0.01256** |
+| accept-all | 0.664 | **0.641** | **0.672** | 0.659 | 0.652 | 0.02105 |
+
+The guard accepts `5/12` updates and rejects `7/12`. Six are rejected for predicted dynamic risk; one proposal becomes locally useless after the two learning trajectories have diverged.
+
+This is a real protective effect, not a solved continual learner. The guard preserves A and still improves C, but B regresses and the guarded model's aggregate mean does not exceed its starting mean.
+
+That exposes the next problem:
+
+> **compatibility rejection protects the repertoire, but wastes useful updates.**
+
+[`T6_DEMO_RESULTS.md`](T6_DEMO_RESULTS.md)
+
+Run the live event trace:
+
+```bash
+python demo_t6_continual_learning.py
+```
 
 ---
 
@@ -185,15 +231,15 @@ SighImageSuper   -> memory is a recoverable distinction
 MovingProblem    -> identity must survive moving coordinates
 AlgoSchalgo      -> ambiguity sets the legal resolution of identity/credit
 Child + V24      -> buy another observation when a proposed write needs finer evidence
-IttnasNoruen     -> preserve counterfactual computational access, not only old outputs
+IttnasNoruen     -> finite useful changes may need nonlinear compensation
 Kompressori      -> experience-induced operator changes can be low-rank and collide
-CausalHorizon    -> propagated causal overlap is the right exact linear interaction coordinate
+CausalHorizon    -> propagated causal overlap is the exact linear interaction coordinate
 Operaattori      -> persistent structure can compile the slow operator being rewritten
 V25              -> local eligibility can itself acquire adaptive temporal modes
 GAx              -> maintain several approaches; context changes their modal gain
 ```
 
-The genetic-algorithm picture has therefore changed from
+The genetic-algorithm picture has changed from
 
 ```text
 variation -> selection -> retention
@@ -202,35 +248,50 @@ variation -> selection -> retention
 to
 
 ```text
-maintain alternative computational approaches
--> context amplifies some
+maintain alternative computations
+-> context favors some
 -> consequence returns to identifiable continuations
--> propose local operator changes
--> test causal compatibility with retained changes
--> consolidate without destroying the repertoire
+-> propose persistent operator change
+-> test compatibility with retained computation
+-> consolidate, shrink, compensate or defer
 ```
 
 Call the extra stage **compatibility selection**.
 
 ---
 
-## Next hard boundary
+## Next hard boundary — T7 compatible partial writes
 
-T5 still uses time-local edit events in a constructed recurrent transport system.
+T6's reject-only guard is useful but wasteful. T7 should ask a more constructive question:
 
-The next serious experiment is **persistent skill edits**:
+> A full candidate is locally useful but unsafe. How much of it can become permanent without destroying retained computation?
 
-1. put several task-specific computational highways in one shared recurrent model;
-2. derive finite low-rank candidate weight changes from actual task episodes;
-3. commit each candidate persistently rather than for one event;
-4. measure old-skill damage, cross-mode leakage and switching cost;
-5. compare parameter/gradient cosine, a real Fisher-style attacker, static Jacobian overlap, propagated causal radar and expensive finite joint evaluation.
+Freeze a descending scale bank such as
 
-If propagated causal geometry still wins there, ThirdWay stops being mainly an explanatory fusion and starts becoming a practical continual-learning mechanism.
+```text
+1.00, 0.75, 0.50, 0.25, 0.125
+```
 
-Only after that should V25's adaptive resonant credit be folded back into the same changing substrate, and only later should the seeded computational approaches be removed.
+and choose the largest fraction that remains target-useful while falling below the retained-skill risk threshold.
 
-The strong phrase remains a target:
+If every scaled version remains unsafe, add the IttnasNoruen lesson: measure a small compensation direction that bends the finite update back into the acceptable region.
+
+The same 12-event proposal stream should compare:
+
+```text
+accept-all
+reject-only guard       <- T6 demo
+safe-step guard         <- T7
+finite oracle upper bound
+```
+
+The target is no longer merely **less forgetting**. It is:
+
+> **keep learning while respecting compatibility constraints.**
+
+After that, return to active sensing for write resolution, V25 adaptive resonant credit, and finally discovered rather than seeded computational approaches.
+
+The strong phrase remains a target, not a result:
 
 > **self-rewriting spectral router over discovered computational highways**
 
@@ -239,11 +300,14 @@ The strong phrase remains a target:
 ## Run
 
 ```bash
+pytest -q
 python -m experiments.gate_t0_fusion
 python -m experiments.gate_t1_moving_road
 python -m experiments.gate_t2_credit_on_moving_road
 python -m experiments.gate_t3_identifiability_credit
 python -m experiments.gate_t4_causal_collision
 python -m experiments.gate_t5_nonlinear_collision_radar
-pytest -q
+python demo_t6_continual_learning.py
 ```
+
+The raw `python -m experiments.gate_t6_persistent_skill_compatibility` command intentionally exits nonzero because the frozen scientific T6 criterion remains a recorded negative result. CI verifies that exact negative result separately rather than hiding it.
