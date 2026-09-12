@@ -157,8 +157,25 @@ def hidden_trajectory(model: Model, sequence: np.ndarray) -> np.ndarray:
     return np.asarray(states)
 
 
+def batch_hidden_trajectories(model: Model, sequences: np.ndarray) -> np.ndarray:
+    """Run the exact same recurrence for a batch of independent sequences."""
+    x = np.asarray(sequences, dtype=float)
+    if x.ndim != 3:
+        raise ValueError("sequences must have shape (batch, time, input_dim)")
+    h = np.zeros((x.shape[0], model.W.shape[0]), dtype=float)
+    states = [h.copy()]
+    for t in range(x.shape[1]):
+        h = np.tanh(h @ model.W.T + x[:, t, :] @ model.B.T + model.b)
+        states.append(h.copy())
+    return np.stack(states, axis=1)
+
+
 def final_hidden(model: Model, sequence: np.ndarray) -> np.ndarray:
     return hidden_trajectory(model, sequence)[-1]
+
+
+def batch_final_hidden(model: Model, sequences: np.ndarray) -> np.ndarray:
+    return batch_hidden_trajectories(model, sequences)[:, -1, :]
 
 
 def _fit_shared_readout(
@@ -178,10 +195,7 @@ def _fit_shared_readout(
         b=bias,
         C=np.zeros(config.hidden_dim, dtype=float),
     )
-    features = np.asarray(
-        [final_hidden(temporary, x) for x in calibration.inputs],
-        dtype=float,
-    )
+    features = batch_final_hidden(temporary, calibration.inputs)
     gram = features.T @ features + config.ridge * np.eye(config.hidden_dim)
     return np.linalg.solve(gram, features.T @ calibration.targets)
 
@@ -196,11 +210,15 @@ def predict(model: Model, sequence: np.ndarray) -> float:
     return float(model.C @ final_hidden(model, sequence))
 
 
+def batch_predict(model: Model, sequences: np.ndarray) -> np.ndarray:
+    return batch_final_hidden(model, sequences) @ model.C
+
+
 def mean_squared_loss(model: Model, dataset: Dataset, skill: int) -> float:
     subset = dataset.for_skill(skill)
     if subset.targets.size == 0:
         raise ValueError(f"dataset has no examples for skill {skill}")
-    outputs = np.asarray([predict(model, x) for x in subset.inputs])
+    outputs = batch_predict(model, subset.inputs)
     return float(np.mean((outputs - subset.targets) ** 2))
 
 
@@ -208,7 +226,7 @@ def evaluate_skill(model: Model, dataset: Dataset, skill: int) -> float:
     subset = dataset.for_skill(skill)
     if subset.targets.size == 0:
         raise ValueError(f"dataset has no examples for skill {skill}")
-    outputs = np.asarray([predict(model, x) for x in subset.inputs])
+    outputs = batch_predict(model, subset.inputs)
     guessed = np.where(outputs >= 0.0, 1.0, -1.0)
     return float(np.mean(guessed == subset.targets))
 
