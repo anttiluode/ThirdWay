@@ -18,3 +18,5 @@ jobs:
       - run: pip install -e '.[test]'
       - name: Print frozen T7A four-learner result
         run: python -m experiments.t7_compatible_partial_writes
+      - name: Print cumulative safe-step drift
+        run: python -m experiments.t7a_accumulation_diagnostic
