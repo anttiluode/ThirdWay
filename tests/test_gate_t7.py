@@ -57,8 +57,8 @@ def test_t7a_chooses_largest_safe_useful_fraction_of_same_candidate():
     )
 
 
-def test_t7a_frozen_demo_must_escape_protective_stagnation_without_losing_safety():
-    """Frozen T7A falsification: scalar safe steps must enable real learning."""
+def test_t7a_frozen_failure_receipt_scalar_safety_does_not_compose():
+    """Reproduce the frozen T7A negative result instead of tuning it away."""
     demo = t7a_demo(seed=0)
 
     assert demo.candidates_considered == 12
@@ -67,17 +67,43 @@ def test_t7a_frozen_demo_must_escape_protective_stagnation_without_losing_safety
     assert demo.candidate_seeds == demo.oracle_candidate_seeds
     assert len(set(demo.candidate_seeds)) == 12
 
-    assert all(scale == 0.0 or scale in SCALE_BANK for scale in demo.safe_step_scales)
-    assert demo.safe_step_nonzero_writes >= demo.reject_only_accepted + 2
+    assert demo.safe_step_scales == (
+        0.75,
+        0.25,
+        0.5,
+        0.5,
+        0.75,
+        0.5,
+        0.5,
+        0.75,
+        0.5,
+        0.75,
+        0.25,
+        0.5,
+    )
+    assert demo.safe_step_nonzero_writes == 12
+    assert demo.reject_only_accepted == 1
 
-    # Preserve essentially the T6 safety result.
-    assert demo.safe_step_old_skill_accuracy >= demo.reject_only_old_skill_accuracy - 0.02
-    assert demo.safe_step_switch_penalty <= demo.reject_only_switch_penalty + 0.005
+    # T7A succeeded at escaping the T6 binary freeze, but it failed the two
+    # predeclared safety requirements.
+    assert demo.safe_step_old_skill_accuracy < demo.reject_only_old_skill_accuracy - 0.02
+    assert demo.safe_step_switch_penalty > demo.reject_only_switch_penalty + 0.005
 
-    # But unlike reject-only T6, actually improve the repertoire.
-    assert demo.safe_step_mean_accuracy >= demo.reject_only_mean_accuracy + 0.01
-    assert demo.safe_step_mean_accuracy >= demo.base_mean_accuracy + 0.005
+    # It also failed both predeclared learning requirements: final aggregate
+    # accuracy did not beat reject-only by +0.01 and did not beat baseline by
+    # +0.005.  Keep these as negative receipts rather than relaxing them.
+    assert demo.safe_step_mean_accuracy < demo.reject_only_mean_accuracy + 0.01
+    assert demo.safe_step_mean_accuracy < demo.base_mean_accuracy + 0.005
 
-    # The finite-damage oracle is an upper-bound control, never a decision input
-    # to the safe-step learner.
+    # Scalar stepping is still better than blindly accepting every full edit in
+    # this stream, which is useful context but not a T7A pass.
+    assert demo.safe_step_mean_accuracy > demo.accept_all_mean_accuracy
+
+    # Even the per-step finite-damage control accepts all 12 writes and fails to
+    # recover the starting aggregate mean, demonstrating that local finite
+    # safety is not a sequence-level guarantee.
+    assert demo.oracle_nonzero_writes == 12
+    assert demo.oracle_mean_accuracy < demo.base_mean_accuracy
+
+    # The finite control is diagnostic only; safe-step never sees it.
     assert demo.oracle_used_for_safe_step is False
