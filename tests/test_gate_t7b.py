@@ -80,48 +80,33 @@ def test_t7b_controller_never_rotates_candidate_and_respects_budget():
         assert max(decision.resultant_rms_by_skill.values()) <= reference.budget + 1e-12
 
 
-def test_t7b_frozen_gate_signed_route_memory_stops_sequence_drift():
+def test_t7b_frozen_negative_receipt():
     s = t7b_demo(seed=0)
-    print(
-        "T7B_DIAGNOSTIC",
-        {
-            "budget": s.residual_budget,
-            "budget_peaks": s.residual_budget_peaks,
-            "scalar_scales": s.scalar_debt_scales,
-            "residual_scales": s.residual_scales,
-            "scalar_accuracy": s.scalar_debt_accuracy,
-            "residual_accuracy": s.residual_accuracy,
-            "scalar_mean": s.scalar_debt_mean_accuracy,
-            "residual_mean": s.residual_mean_accuracy,
-            "base_mean": s.base_mean_accuracy,
-            "reject_mean": s.reject_only_mean_accuracy,
-            "scalar_old": s.scalar_debt_old_skill_accuracy,
-            "residual_old": s.residual_old_skill_accuracy,
-            "reject_old": s.reject_only_old_skill_accuracy,
-            "scalar_switch": s.scalar_debt_switch_penalty,
-            "residual_switch": s.residual_switch_penalty,
-            "reject_switch": s.reject_only_switch_penalty,
-            "scalar_writes": s.scalar_debt_nonzero_writes,
-            "residual_writes": s.residual_nonzero_writes,
-            "repairs": s.repair_events,
-            "final_residual": s.final_residual_rms,
-            "final_debt": s.final_scalar_debt,
-            "passes": _passes_t7b(s),
-        },
-    )
 
-    assert len(s.candidate_seeds) == 12
-    assert len(set(s.candidate_seeds)) == 12
+    # The fixed world and safety envelope reproduce exactly.
+    assert s.candidate_seeds == tuple(range(32, 44))
     assert s.all_direction_pure
     assert s.all_budget_respected
-    assert s.residual_nonzero_writes >= 3
-    assert s.residual_old_skill_accuracy >= s.reject_only_old_skill_accuracy - 0.02
-    assert s.residual_switch_penalty <= s.reject_only_switch_penalty + 0.005
-    assert s.residual_mean_accuracy >= s.reject_only_mean_accuracy + 0.01
-    assert s.residual_mean_accuracy >= s.base_mean_accuracy + 0.005
+    assert np.isclose(s.residual_budget, 0.030291886681226846, atol=1e-12)
+
+    # Signed route memory is materially less conservative than unsigned debt.
+    assert s.scalar_debt_nonzero_writes == 9
+    assert s.residual_nonzero_writes == 11
     assert s.residual_nonzero_writes >= s.scalar_debt_nonzero_writes + 2
-    assert s.residual_old_skill_accuracy >= s.scalar_debt_old_skill_accuracy - 0.01
     assert s.residual_mean_accuracy >= s.scalar_debt_mean_accuracy + 0.005
-    assert s.repair_events >= 2
+    assert s.residual_old_skill_accuracy >= s.scalar_debt_old_skill_accuracy - 0.01
+    assert np.allclose(s.scalar_debt_accuracy, (0.7890625, 0.6484375, 0.6640625))
+    assert np.allclose(s.residual_accuracy, (0.7890625, 0.6875, 0.6796875))
+
+    # It also preserves the predeclared old-skill safety floor and route budget.
+    assert s.residual_old_skill_accuracy >= s.reject_only_old_skill_accuracy - 0.02
+    assert np.isclose(s.residual_old_skill_accuracy, 0.73828125)
+
+    # But the frozen scientific gate fails in three distinct ways.
+    assert s.residual_switch_penalty > s.reject_only_switch_penalty + 0.005
+    assert s.residual_mean_accuracy < s.reject_only_mean_accuracy + 0.01
+    assert s.residual_mean_accuracy < s.base_mean_accuracy + 0.005
+    assert s.repair_events == 0
+    assert np.isclose(s.residual_mean_accuracy, s.base_mean_accuracy)
     assert all(after >= before - 1e-15 for before, after in s.scalar_debt_transitions)
-    assert _passes_t7b(s)
+    assert not _passes_t7b(s)
