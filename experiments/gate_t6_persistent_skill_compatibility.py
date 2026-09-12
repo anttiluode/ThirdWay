@@ -1,13 +1,16 @@
 """Gate T6: persistent skill compatibility in a shared recurrent model.
 
-This first implementation step defines only the deterministic recurrent world
-and the three temporal skills. Persistent edits and compatibility scoring are
-added by later TDD steps.
+The gate starts from one deterministic 24-state recurrent substrate shared by
+three temporal skills. Candidate learning events are persistent rank-1 edits to
+the recurrent matrix. Candidate generation is deliberately target-only: it may
+measure whether an edit helps the skill that proposed it, but it cannot inspect
+cross-skill damage before the later compatibility stage.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Iterable
 
 import numpy as np
 
@@ -31,6 +34,8 @@ class WorldConfig:
 
 
 CONFIG = WorldConfig()
+AMPLITUDES = (-0.30, -0.20, -0.12, -0.07, 0.07, 0.12, 0.20, 0.30)
+DIRECTIONS_PER_CANDIDATE = 8
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,23 @@ class Model:
     B: np.ndarray
     b: np.ndarray
     C: np.ndarray
+
+
+@dataclass(frozen=True)
+class CandidateEdit:
+    skill: int
+    seed: int
+    delta_w: np.ndarray
+    base_loss: float
+    edited_loss: float
+
+    @property
+    def improvement(self) -> float:
+        return float(self.base_loss - self.edited_loss)
+
+    @property
+    def identity(self) -> tuple[int, int]:
+        return (int(self.skill), int(self.seed))
 
 
 def make_dataset(
@@ -174,6 +196,14 @@ def predict(model: Model, sequence: np.ndarray) -> float:
     return float(model.C @ final_hidden(model, sequence))
 
 
+def mean_squared_loss(model: Model, dataset: Dataset, skill: int) -> float:
+    subset = dataset.for_skill(skill)
+    if subset.targets.size == 0:
+        raise ValueError(f"dataset has no examples for skill {skill}")
+    outputs = np.asarray([predict(model, x) for x in subset.inputs])
+    return float(np.mean((outputs - subset.targets) ** 2))
+
+
 def evaluate_skill(model: Model, dataset: Dataset, skill: int) -> float:
     subset = dataset.for_skill(skill)
     if subset.targets.size == 0:
@@ -185,3 +215,71 @@ def evaluate_skill(model: Model, dataset: Dataset, skill: int) -> float:
 
 def evaluate_all(model: Model, dataset: Dataset) -> np.ndarray:
     return np.asarray([evaluate_skill(model, dataset, skill) for skill in range(3)])
+
+
+def apply_edit(model: Model, edit: CandidateEdit) -> Model:
+    return Model(
+        W=model.W + edit.delta_w,
+        B=model.B,
+        b=model.b,
+        C=model.C,
+    )
+
+
+def generate_candidates(
+    model: Model,
+    dataset: Dataset,
+    skill: int,
+    candidate_seeds: Iterable[int],
+    *,
+    min_improvement: float = 1e-4,
+) -> list[CandidateEdit]:
+    """Generate useful rank-1 edits using target-skill utility only.
+
+    Each candidate identity owns a fixed bundle of eight random rank-1
+    directions. The best direction/amplitude is selected using only a dataset
+    slice containing the target skill. Cross-skill performance is inaccessible
+    to this function by construction.
+    """
+    target = dataset.for_skill(skill)
+    base_loss = mean_squared_loss(model, target, skill)
+    hidden_dim = model.W.shape[0]
+    edits: list[CandidateEdit] = []
+
+    for candidate_seed in candidate_seeds:
+        rng = np.random.default_rng(10_000 * int(skill) + int(candidate_seed))
+        best_loss = base_loss
+        best_delta: np.ndarray | None = None
+
+        for _ in range(DIRECTIONS_PER_CANDIDATE):
+            u = rng.normal(size=hidden_dim)
+            v = rng.normal(size=hidden_dim)
+            u /= np.linalg.norm(u)
+            v /= np.linalg.norm(v)
+            direction = np.outer(u, v)
+
+            for amplitude in AMPLITUDES:
+                delta = float(amplitude) * direction
+                trial = Model(
+                    W=model.W + delta,
+                    B=model.B,
+                    b=model.b,
+                    C=model.C,
+                )
+                trial_loss = mean_squared_loss(trial, target, skill)
+                if trial_loss < best_loss:
+                    best_loss = trial_loss
+                    best_delta = delta.copy()
+
+        if best_delta is not None and best_loss < base_loss - min_improvement:
+            edits.append(
+                CandidateEdit(
+                    skill=int(skill),
+                    seed=int(candidate_seed),
+                    delta_w=best_delta,
+                    base_loss=float(base_loss),
+                    edited_loss=float(best_loss),
+                )
+            )
+
+    return edits
