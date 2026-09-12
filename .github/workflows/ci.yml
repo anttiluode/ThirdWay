@@ -36,3 +36,18 @@ jobs:
           print("T6 recorded negative reproduced")
           PY
       - run: python demo_t6_continual_learning.py
+      - name: Verify T7A remains the recorded scalar safe-step negative
+        run: |
+          python - <<'PY'
+          from experiments.t7_compatible_partial_writes import t7a_demo
+          summary = t7a_demo()
+          assert summary.safe_step_nonzero_writes == 12
+          assert summary.reject_only_accepted == 1
+          assert summary.safe_step_old_skill_accuracy < summary.reject_only_old_skill_accuracy - 0.02
+          assert summary.safe_step_switch_penalty > summary.reject_only_switch_penalty + 0.005
+          assert summary.safe_step_mean_accuracy < summary.base_mean_accuracy + 0.005
+          assert summary.safe_step_mean_accuracy > summary.accept_all_mean_accuracy
+          assert summary.oracle_used_for_safe_step is False
+          print("T7A recorded negative reproduced")
+          PY
+      - run: python -m experiments.t7_compatible_partial_writes
