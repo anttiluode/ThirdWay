@@ -13,7 +13,7 @@ The current object is:
 
 > **a self-rewriting collection of covariant computational highways.**
 
-A highway is not just a weight vector. It has at least five separable properties:
+A highway has at least five separable properties:
 
 ```text
 computation       — what counterfactual operation it performs
@@ -38,8 +38,6 @@ Two seeded, counterfactually different computations share one router. Reward is 
 | current-only | 0.512125 | 0.517902 | 0.759125 |
 | shuffled route identity | 0.043000 | 0.049467 | 0.524750 |
 
-Result:
-
 > **The reward need not carry the address if the material has kept it locally.**
 
 [`T0_RESULTS.md`](T0_RESULTS.md)
@@ -54,10 +52,6 @@ Two computational modes rotate through coordinates. A fixed-coordinate identity 
 |---|---:|---:|
 | fixed initial coordinates | 0.519271 | 0.038542 |
 | **continuation tracker** | **1.000000** | **1.000000** |
-
-The exact cocycle residual is below `3e-16`.
-
-Result:
 
 ```math
 \boxed{L_tE_k(t)=E_k(t+1)}
@@ -78,15 +72,9 @@ Reward is delayed 3–10 events while the computational basis rotates by `0.32 r
 | **covariantly transported** | **0.952750** | **0.955109** | **0.977875** |
 | stale coordinates | 0.184500 | 0.196868 | 0.598500 |
 
-The transported physical eligibility matches an ideal modal shadow to about `1.1e-15`.
-
-Result:
-
 ```math
 \boxed{\textbf{credit identity must be covariant with computational identity}.}
 ```
-
-This names a distinct failure:
 
 > **stale credit** — the memory survives, but now points at yesterday's computation.
 
@@ -96,11 +84,7 @@ This names a distinct failure:
 
 ## T3 — credit cannot be finer than identifiable computation
 
-T2 knew the continuation transport. T3 removes that privilege.
-
-### Noisy crossing
-
-When two moving spectral axes become nearly degenerate, ordinary vector tracking becomes unstable. An ambiguity-block tracker instead tracks the coarser identifiable subspace and carries its previous semantic basis through the block.
+When two moving spectral axes become nearly degenerate, ordinary vector tracking becomes unstable. An ambiguity-block tracker follows the coarser identifiable subspace instead.
 
 | tracker | late route accuracy | semantic fidelity |
 |---|---:|---:|
@@ -108,19 +92,13 @@ When two moving spectral axes become nearly degenerate, ordinary vector tracking
 | **ambiguity blocks** | **0.9525** | **0.9967** |
 | oracle | 0.9525 | 1.0000 |
 
-### Exact hidden-gauge attacker
-
-Then the hidden axes rotate by 90 degrees *inside an exactly degenerate subspace*. The primary operator is mathematically blind to that rotation.
-
-A second diagnostic operator is allowed only while the primary operator cannot identify the individual routes.
+Then the hidden axes rotate by 90 degrees *inside an exactly degenerate subspace*. The primary operator is mathematically blind to that rotation. A second diagnostic operator is allowed only while the primary operator cannot identify the individual routes.
 
 | tracker | late route accuracy | semantic fidelity | extra query fraction |
 |---|---:|---:|---:|
 | ambiguity blocks only | 0.3884 | 0.0210 | 0 |
 | **active operator family** | **0.9453** | **0.9992** | **0.2002** |
 | oracle | 0.9525 | 1.0000 | 0 |
-
-Result:
 
 ```math
 \boxed{\textbf{resolution of credit} \le \textbf{resolution of identifiable computation}.}
@@ -140,128 +118,119 @@ Kompressori found low-rank experience-induced operator changes and interference 
 \Omega_{ji}=V_j^*\Phi(\tau_j,\tau_i+1)U_i.
 ```
 
-T4 creates a deliberately hostile transport example. A first low-rank edit is moved by the substrate before a second edit occurs.
-
-Across 192 balanced cases:
+Across 192 balanced exact linear cases:
 
 | collision predictor | accuracy | precision | recall |
 |---|---:|---:|---:|
 | **propagated causal overlap** `|Omega_ji|` | **1.000** | **1.000** | **1.000** |
 | static overlap `|V_j^T U_i|` | 0.333 | 0.000 | 0.000 |
 
-The static rule fails both ways:
+Same raw coordinate can be harmless after transport; different raw coordinates can collide exactly.
 
-```text
-same raw coordinate
-    -> static overlap = 1
-    -> causal overlap = 0
-    -> finite cross term = 0
-```
-
-while
-
-```text
-different raw coordinate
-    -> static overlap = 0
-    -> causal overlap = 1
-    -> finite cross term = 0.04
-```
-
-The exact cross-term prediction matches direct matrix products to below `7e-18`.
-
-Result:
-
-> **Two pieces of learning are compatible according to how their effects propagate through the current operator, not merely according to where their parameters sit.**
+> **Compatibility is about where an edit's consequence arrives, not merely where its parameters live.**
 
 [`T4_RESULTS.md`](T4_RESULTS.md)
 
 ---
 
-## What moved forward from the older repos
+## T5 — nonlinear collision radar
 
-[`RETROSPECTIVE.md`](RETROSPECTIVE.md) contains the full map. The compact version is:
+T4's `Omega` result was exact and linear. T5 moves the same question into a driven `tanh` recurrent system with finite rank-1 edits.
 
-```text
-SighImageSuper
-    -> memory = recoverable distinction, not merely persistent state
+The target is now the measured finite nonlinear change in the **marginal action of the later edit**. The causal predictor does not run the joint pair. It measures one edit in isolation, transports that perturbation through the unedited recurrent Jacobians, then asks how susceptible the later edit is to the arriving perturbation.
 
-MovingProblem
-    -> moving coordinates are not the problem; unjustified identity is
-
-AlgoSchalgo
-    -> ambiguity blocks become the legal granularity of credit
-
-Child
-    -> delayed audit + active sensing + provenance + representation drift become one loop
-
-GeometricNeuronV24
-    -> ask for another measurement when ambiguity would change which write is justified
-
-IttnasNoruen
-    -> protect computational continuations/counterfactual signatures, not only stored outputs
-
-Kompressori
-    -> learn/store low-rank operator changes rather than trying to preserve the entire response operator
-
-CausalHorizon
-    -> use directed propagated overlap to predict whether low-rank edits collide
-
-Operaattori
-    -> persistent structure can eventually compile the slow operator being rewritten
-
-BlackBoxLab
-    -> preserve useful alternative computations rather than enforcing diversity through destructive depletion
+```math
+\widehat{\delta x}_{j}
+=J_{j-1}\cdots J_{i+1}r_i,
+\qquad
+s_{\rm causal}=\|G_j\widehat{\delta x}_{j}\|.
 ```
 
-Several generic old questions can now retire. We no longer need new repos merely to ask whether history matters, whether delayed reward can work, whether active sensing helps, or whether coordinates may drift.
+There are 192 cases. Predictor thresholds are fit on source sites 0–7 and frozen before evaluation on held-out sites 8–15.
 
-The harder object is now:
+Correlation with finite nonlinear collision strength:
 
-```text
-maintain several ways of computing
-        +
-know which distinctions are currently identifiable
-        +
-route among them
-        +
-return delayed consequence to the continuing route
-        +
-rewrite the operator without colliding with other retained routes
-        +
-keep enough alternative structure for tomorrow's different question
-```
+| predictor | Pearson r |
+|---|---:|
+| parameter cosine | -0.411329 |
+| activation / Fisher-ish proxy | -0.411329 |
+| static Jacobian-change cosine | -0.410830 |
+| **propagated causal susceptibility** | **0.994736** |
 
-That is much closer to the original genetic-algorithm intuition than “a neuron runs a GA.”
+Held-out collision classification:
 
-The evolutionary principle has moved upward:
+| predictor | accuracy | precision | recall |
+|---|---:|---:|---:|
+| parameter cosine | 0.604167 | 0.000000 | 0.000000 |
+| activation / Fisher-ish proxy | 0.604167 | 0.000000 | 0.000000 |
+| static Jacobian-change cosine | 0.604167 | 0.000000 | 0.000000 |
+| **propagated causal susceptibility** | **1.000000** | **1.000000** | **1.000000** |
 
-```text
-maintain alternatives
--> expose them to context
--> amplify some
--> credit identifiable continuations
--> propose local operator changes
--> test compatibility with retained causal highways
--> consolidate without destroying the repertoire
-```
+So the T4 idea survives a first nonlinear attack:
+
+> **A single-edit, first-order causal forecast can predict a finite nonlinear interaction on unseen sites even when raw/static similarity points the wrong way.**
+
+This is still a constructed transport RNN, not yet continual learning in a trained network. The activation attacker is only Fisher-ish, not a Fisher matrix.
+
+[`T5_RESULTS.md`](T5_RESULTS.md)
 
 ---
 
-## Next
+## What moved forward from the older repos
 
-T4 is exact and linear on purpose. The next serious gate should **estimate** causal overlap in a nonlinear adaptive model and attack it with the boring alternatives:
+[`RETROSPECTIVE.md`](RETROSPECTIVE.md) contains the detailed map. The compact form is:
 
-- gradient/parameter cosine;
-- Fisher-like overlap;
-- static Jacobian/subspace overlap;
-- finite joint candidate evaluation;
-- propagated causal-overlap estimate.
+```text
+SighImageSuper   -> memory is a recoverable distinction
+MovingProblem    -> identity must survive moving coordinates
+AlgoSchalgo      -> ambiguity sets the legal resolution of identity/credit
+Child + V24      -> buy another observation when a proposed write needs finer evidence
+IttnasNoruen     -> preserve counterfactual computational access, not only old outputs
+Kompressori      -> experience-induced operator changes can be low-rank and collide
+CausalHorizon    -> propagated causal overlap is the right exact linear interaction coordinate
+Operaattori      -> persistent structure can compile the slow operator being rewritten
+V25              -> local eligibility can itself acquire adaptive temporal modes
+GAx              -> maintain several approaches; context changes their modal gain
+```
 
-The target is not another pretty theorem. It is a practical **collision radar for learning**: decide before committing two updates whether they will destroy one another's computational route.
+The genetic-algorithm picture has therefore changed from
 
-After that, V25's adaptive resonant credit can be brought back into the same moving/rewriting system, and only later should we remove the seeded direct/relational approaches and ask whether computational highways emerge spontaneously.
+```text
+variation -> selection -> retention
+```
 
-The strong phrase remains a target, not a current claim:
+to
+
+```text
+maintain alternative computational approaches
+-> context amplifies some
+-> consequence returns to identifiable continuations
+-> propose local operator changes
+-> test causal compatibility with retained changes
+-> consolidate without destroying the repertoire
+```
+
+Call the extra stage **compatibility selection**.
+
+---
+
+## Next hard boundary
+
+T5 still uses time-local edit events in a constructed recurrent transport system.
+
+The next serious experiment is **persistent skill edits**:
+
+1. put several task-specific computational highways in one shared recurrent model;
+2. derive finite low-rank candidate weight changes from actual task episodes;
+3. commit each candidate persistently rather than for one event;
+4. measure old-skill damage, cross-mode leakage and switching cost;
+5. compare parameter/gradient cosine, a real Fisher-style attacker, static Jacobian overlap, propagated causal radar and expensive finite joint evaluation.
+
+If propagated causal geometry still wins there, ThirdWay stops being mainly an explanatory fusion and starts becoming a practical continual-learning mechanism.
+
+Only after that should V25's adaptive resonant credit be folded back into the same changing substrate, and only later should the seeded computational approaches be removed.
+
+The strong phrase remains a target:
 
 > **self-rewriting spectral router over discovered computational highways**
 
@@ -275,5 +244,6 @@ python -m experiments.gate_t1_moving_road
 python -m experiments.gate_t2_credit_on_moving_road
 python -m experiments.gate_t3_identifiability_credit
 python -m experiments.gate_t4_causal_collision
+python -m experiments.gate_t5_nonlinear_collision_radar
 pytest -q
 ```
