@@ -19,3 +19,4 @@ jobs:
       - run: pip install -e '.[test]'
       - run: pytest
       - run: python -m experiments.gate_t0_fusion
+      - run: python -m experiments.gate_t1_moving_road
