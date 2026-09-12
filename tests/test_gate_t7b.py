@@ -82,6 +82,33 @@ def test_t7b_controller_never_rotates_candidate_and_respects_budget():
 
 def test_t7b_frozen_gate_signed_route_memory_stops_sequence_drift():
     s = t7b_demo(seed=0)
+    print(
+        "T7B_DIAGNOSTIC",
+        {
+            "budget": s.residual_budget,
+            "budget_peaks": s.residual_budget_peaks,
+            "scalar_scales": s.scalar_debt_scales,
+            "residual_scales": s.residual_scales,
+            "scalar_accuracy": s.scalar_debt_accuracy,
+            "residual_accuracy": s.residual_accuracy,
+            "scalar_mean": s.scalar_debt_mean_accuracy,
+            "residual_mean": s.residual_mean_accuracy,
+            "base_mean": s.base_mean_accuracy,
+            "reject_mean": s.reject_only_mean_accuracy,
+            "scalar_old": s.scalar_debt_old_skill_accuracy,
+            "residual_old": s.residual_old_skill_accuracy,
+            "reject_old": s.reject_only_old_skill_accuracy,
+            "scalar_switch": s.scalar_debt_switch_penalty,
+            "residual_switch": s.residual_switch_penalty,
+            "reject_switch": s.reject_only_switch_penalty,
+            "scalar_writes": s.scalar_debt_nonzero_writes,
+            "residual_writes": s.residual_nonzero_writes,
+            "repairs": s.repair_events,
+            "final_residual": s.final_residual_rms,
+            "final_debt": s.final_scalar_debt,
+            "passes": _passes_t7b(s),
+        },
+    )
 
     assert len(s.candidate_seeds) == 12
     assert len(set(s.candidate_seeds)) == 12
