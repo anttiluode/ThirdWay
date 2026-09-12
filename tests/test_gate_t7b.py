@@ -5,10 +5,11 @@ from experiments.gate_t6_persistent_skill_compatibility import (
     make_dataset,
     make_seed_model,
 )
-from experiments.t7_compatible_partial_writes import t7a_demo
+from experiments.t7_compatible_partial_writes import SCALE_BANK, t7a_demo
 from experiments.t7b_residual_carrying_memory import (
     RESIDUAL_EXAMPLES,
     build_frozen_candidate_stream,
+    consider_residual_candidate,
     reject_only_residual_budget,
     residual_rms,
     route_signature,
@@ -47,3 +48,31 @@ def test_t7b_stream_and_budget_are_frozen_from_existing_baseline():
     assert reference.accepted == t7a.reject_only_accepted == 1
     assert reference.budget > 1e-12
     assert reference.budget == max(reference.peak_by_skill)
+
+
+def test_t7b_controller_never_rotates_candidate_and_respects_budget():
+    proposal = make_dataset(seed=101, examples_per_skill=128)
+    calibration = make_dataset(seed=103, examples_per_skill=128)
+    model = make_seed_model(seed=23)
+    stream = build_frozen_candidate_stream(seed=0)
+    candidate = stream[0]
+    reference = reject_only_residual_budget(seed=0)
+    anchors = {k: route_signature(model, calibration, k) for k in range(3)}
+    residuals = {k: np.zeros_like(anchors[k]) for k in range(3)}
+
+    decision = consider_residual_candidate(
+        model,
+        candidate=candidate,
+        target_data=proposal,
+        calibration=calibration,
+        residuals=residuals,
+        budget=reference.budget,
+    )
+
+    assert decision.scale in (0.0,) + SCALE_BANK
+    if decision.accepted:
+        assert np.allclose(
+            decision.scaled_candidate.delta_w,
+            decision.scale * candidate.delta_w,
+        )
+        assert max(decision.resultant_rms_by_skill.values()) <= reference.budget + 1e-12
