@@ -19,7 +19,7 @@ The target is not a new optimizer. The target is a **pre-commit compatibility de
 
 If the gate succeeds, the narrow claim is:
 
-> **In this shared nonlinear recurrent model, propagated causal compatibility predicts persistent cross-skill damage from low-rank candidate edits better than static parameter, gradient, Fisher-style, and local Jacobian overlap signals.**
+> **In this shared nonlinear recurrent model, propagated causal compatibility predicts persistent cross-skill damage from low-rank candidate edits better than static parameter, gradient, empirical-Fisher, and local Jacobian overlap signals.**
 
 T6 must not claim general superiority over continual-learning methods, biological plausibility, or spontaneous discovery of computational highways.
 
@@ -29,7 +29,7 @@ Every candidate edit used in the collision battery must be **individually useful
 
 This avoids a trivial failure mode in which the radar merely detects bad edits. The question is specifically whether two locally successful changes can coexist.
 
-For an old retained edit `R` and a new candidate `C`, the gate therefore separates two questions:
+For an old retained edit `R` and a new candidate `C`, the gate separates two questions:
 
 1. **utility:** does `C` improve its target skill when applied alone?
 2. **compatibility:** after `C` is permanently added to the current shared model, how much does it damage retained skills or switching behavior?
@@ -41,82 +41,88 @@ Only candidates passing the utility threshold enter the compatibility comparison
 Use one small recurrent tanh network with shared recurrent weights:
 
 ```math
-h_{t+1}=\tanh(Wh_t + Bx_t + b),
+h_{t+1}=\tanh(Wh_t + Bx_t + Cc + b),
 ```
 
-with one fixed readout vector or a small shared readout matrix.
+where `c` is an explicit one-hot task context. T6 is not testing task inference.
 
-The recurrent matrix `W` is the object that receives persistent low-rank edits.
+A single shared linear readout produces the binary answer:
 
-The model should stay small enough that all attackers and oracle measurements can be computed directly in NumPy. No autograd is required for the candidate mechanism. If finite-difference gradients are used as an attacker, label them as such.
+```math
+\hat y = r^\top h_T.
+```
 
-Recommended first implementation size:
+The recurrent matrix `W` is the only object that receives persistent low-rank edits.
+
+First implementation constants are fixed by the spec:
 
 ```text
-hidden dimension: 24–40
-sequence length: 12–24
+hidden dimension: 24
+sequence length: 16
 skills: 3
-candidate edit rank: 1 or 2
+candidate edit rank: 1
 ```
 
-The exact values are implementation parameters, not claims.
+The gate remains pure NumPy.
 
 ## Skills
 
-T6 needs multiple tasks that use the same recurrent substrate but require different temporal computations. They should not differ only by output label.
-
-Recommended three-skill family:
+All three tasks use the same input channels, binary target distribution and output scale. Only the temporal computation differs.
 
 ### Skill A — recent cue
 
-Output depends on a recent input feature.
+At a marked late position, one signed cue determines the target.
 
 ### Skill B — delayed cue
 
-Output depends on a feature seen several steps earlier.
+The target is determined by a signed cue at a marked early position, with nuisance events after it.
 
-### Skill C — relational / order cue
+### Skill C — temporal relation
 
-Output depends on the relation or temporal order between two events rather than either event alone.
+Two marked signed events occur; the target is their ordered relation, e.g. whether their signed product matches the presented order bit. Neither single event is sufficient.
 
-The tasks share input statistics and output scale so that compatibility cannot be solved by separating them through obvious input magnitude or output channels.
+Task markers and context are balanced. Nuisance inputs share the same distribution across skills so that simple input magnitude does not reveal the task.
 
-The model is evaluated under explicit task context. T6 is not testing task inference.
+## Deterministic seed model
 
-## Seed model
+Use one fixed RNG seed to construct `W0`, `B`, `C` and `b`.
 
-T6 should start from a base recurrent system that has nontrivial but imperfect performance on all three skills.
+`W0` is scaled to a stable spectral radius below 1.0. `B`, `C` and `b` remain fixed for all of T6.
 
-Two acceptable construction paths are:
+Generate a fixed training batch for the three skills, run it through `W0`, and fit the **single shared readout `r` by ridge regression** on the concatenated terminal hidden states. No recurrent weights are trained at this stage.
 
-1. **closed-form / random-feature seed:** hold `W` fixed initially and fit only a linear readout so all tasks are above chance but leave room for recurrent improvement;
-2. **small deterministic search seed:** select one random `W` from a fixed seed bank whose shared readout reaches a required baseline range.
+The resulting base model must satisfy all of:
 
-Do not spend T6 building a large trained network. The purpose is persistent edit compatibility, not representation learning.
+```text
+accuracy on each skill > 0.60
+accuracy on each skill < 0.95
+```
 
-The chosen seed procedure must be deterministic and reproduced in tests.
+If the fixed initial seed misses this range, the implementation may deterministically scan a predeclared seed list `0..31` and choose the first seed satisfying it. This selection uses only base-model skill accuracy and is frozen before candidate edits are generated.
 
 ## Candidate persistent edits
 
-For each skill, generate a small family of rank-1 or rank-2 recurrent edits:
+For each skill and each candidate seed, sample a deterministic rank-1 direction
 
 ```math
-\Delta W = U M V^\top.
+D = uv^\top,
 ```
 
-A candidate may be obtained by finite local probes around the current model:
+with unit-norm `u` and `v`.
+
+Test the fixed signed amplitude grid
 
 ```text
-propose low-rank direction
--> apply temporarily
--> measure target-skill improvement
--> scale / line-search over a small fixed amplitude set
--> keep only individually useful candidates
+{-0.30, -0.20, -0.10, +0.10, +0.20, +0.30}
 ```
 
-This is intentionally simple. T6 does not need to solve how candidate edits are generated optimally.
+and choose the amplitude that most improves the target skill on a candidate-generation batch.
 
-The candidate-generation procedure must not inspect cross-skill compatibility scores. Otherwise the compatibility predictor would be baked into the proposals.
+A candidate is admitted only if it reduces target-skill loss by at least **5% relative** to `W0` on that batch and also improves target-skill accuracy by at least **0.02 absolute**.
+
+Candidate generation is forbidden from reading any other skill's loss, any compatibility predictor, or any pairwise score.
+
+Generate candidates until each skill has at least 12 admitted edits or a fixed maximum of 256 proposed directions is exhausted. Failure to obtain 12 admitted edits for a skill is a failed world configuration, not a radar result.
 
 ## Persistent consolidation experiment
 
@@ -127,54 +133,75 @@ retained edit R
 candidate edit C
 ```
 
-The current model is
+with different target skills.
+
+The retained model is
 
 ```math
-W_R = W_0 + R.
+W_R = W_0 + R,
 ```
 
-The candidate model is
+and the consolidated model is
 
 ```math
-W_{R+C}=W_0 + R + C.
+W_{R+C}=W_0+R+C.
 ```
 
-Both `R` and `C` must be individually useful on their own target skills from the same base model.
+Both `R` and `C` must have passed the individual-utility rule from the same base model.
 
-For each pair, measure the finite persistent damage caused by adding `C` after `R`.
+Each ordered pair is evaluated on a separate fixed evaluation batch never used for candidate generation.
 
-## Outcome measures
+## Primary outcome — retained-skill damage
 
-T6 uses three damage measures. A pair may collide through any of them.
-
-### 1. Retained-skill damage
+For retained skill `s_R`, define raw damage
 
 ```math
-D_{old} = \max_{s\in S_R}
-\left[\operatorname{loss}_s(W_{R+C})-\operatorname{loss}_s(W_R)\right].
+\Delta L_{old}
+=
+L_{s_R}(W_{R+C})-L_{s_R}(W_R).
 ```
 
-This is the primary target.
+Define scale-normalized damage
 
-### 2. Computational leakage
+```math
+D_{old}
+=
+\frac{\Delta L_{old}}{\max(L_{s_R}(W_R),0.05)}.
+```
 
-Measure how much the hidden trajectory for one skill becomes more similar to another skill's trajectory after consolidation.
+The primary continuous target is `D_old`.
 
-Use a simple, reproducible diagnostic such as normalized cross-skill hidden-state Gram overlap or principal-subspace overlap.
+A **material collision** is fixed by the spec as
 
-This is diagnostic, not the primary collision label.
+```math
+\boxed{D_{old}>0.20}.
+```
 
-### 3. Switching cost
+This threshold is never fit to the held-out battery.
 
-Run short alternating blocks of tasks A/B/C and measure the transient error immediately after a context switch.
+## Secondary outcomes
 
-This detects edits that preserve isolated task accuracy but damage fast routing/use of the shared substrate.
+### Computational leakage
 
-The primary binary collision label is derived from retained-skill damage with a fixed threshold chosen before test scoring. Leakage and switching cost are reported continuously.
+For each skill, concatenate hidden trajectories across a fixed probe batch and form a normalized hidden-state Gram matrix. Report how much the retained and new skill Gram matrices become more similar after consolidation.
+
+This is diagnostic only; it does not define the collision label.
+
+### Switching cost
+
+Run a fixed stream of short task blocks in the order
+
+```text
+A -> B -> C -> A -> C -> B
+```
+
+using explicit context. Report the change in error on the first two examples after each context switch. This detects edits that preserve isolated skill accuracy but damage rapid reuse of the shared substrate.
+
+Again, this is diagnostic rather than the primary collision label.
 
 ## Pre-commit predictors
 
-Every predictor must be computed without committing both edits permanently.
+Every predictor is computed at `W_R` without permanently committing `C` and without evaluating the joint model `W_{R+C}`.
 
 ### Attacker 1 — parameter cosine
 
@@ -182,144 +209,167 @@ Every predictor must be computed without committing both edits permanently.
 s_{param}=|\cos(R,C)|.
 ```
 
-For low-rank edits, flatten the matrices.
+Flatten the edit matrices.
 
-### Attacker 2 — gradient cosine
+### Attacker 2 — gradient conflict
 
-Estimate each skill's local loss gradient with respect to `W` at `W_R` using deterministic finite differences or analytic forward sensitivities if convenient.
+Compute the full gradient of retained-skill loss with respect to `W_R` using explicit NumPy forward sensitivities through the recurrence. This attacker may use exact chain-rule information; it is deliberately allowed to be strong.
 
-Score the alignment between the candidate edit and retained-skill gradients, and/or gradient-gradient cosine between skill objectives.
+Score the candidate against the retained-skill gradient as
 
-The exact chosen scalar must be documented before the held-out battery is evaluated.
-
-### Attacker 3 — true Fisher-style overlap
-
-Unlike T5's activation proxy, T6 should build an actual empirical Fisher-style matrix or diagonal approximation from per-example output sensitivities under the retained model.
-
-For tractability, use either:
-
-```text
-diagonal empirical Fisher
+```math
+s_{grad}
+=
+\frac{|\langle \nabla_W L_{s_R},C\rangle|}
+{\|\nabla_W L_{s_R}\|_F\,\|C\|_F}.
 ```
 
-or a small low-rank empirical Fisher estimated from a fixed probe batch.
+The candidate mechanism does not use this gradient.
 
-Report exactly which approximation is used. Do not call a cosine proxy "Fisher".
+### Attacker 3 — diagonal empirical Fisher importance
 
-### Attacker 4 — static Jacobian/subspace overlap
+On a fixed retained-skill probe batch, compute per-example gradients `g_q` of the binary negative-log-likelihood with respect to `W_R` and form
 
-Measure the local recurrent Jacobian change caused by each persistent edit on its own skill trajectories, but compare those changes without transporting them through the later retained dynamics.
+```math
+F_{diag}=\frac1Q\sum_q g_q\odot g_q.
+```
 
-This is the natural static analogue of the T5 attacker.
+Score candidate risk as Fisher-weighted edit energy:
+
+```math
+s_{Fisher}(C\to R)
+=
+\frac{\sum F_{diag}\odot C^2}{\|C\|_F^2}.
+```
+
+This is explicitly a **diagonal empirical Fisher**, not a cosine proxy and not the full Fisher information matrix.
+
+### Attacker 4 — static Jacobian-change overlap
+
+For `R` and `C` separately, measure the change each edit produces in the one-step recurrent Jacobian over its own skill probe trajectories. Concatenate these Jacobian-change tensors over time and examples and compute their absolute cosine without temporal transport:
+
+```math
+s_{Jstatic}=|\cos(\Delta J_R,\Delta J_C)|.
+```
 
 ### Candidate mechanism — propagated causal compatibility
 
-Measure the isolated state-response field induced by candidate `C` on its own target trajectories.
+First measure the hidden-state response field induced by temporarily applying `C` on its own target-skill trajectories around `W_R`.
 
-Propagate that perturbation through the current retained dynamics `W_R` to the times / states at which retained skills are sensitive.
-
-Then contract it with a retained-skill susceptibility operator.
-
-A generic score is
+Propagate each resulting perturbation through the **retained model's unedited tangent dynamics**:
 
 ```math
+\widehat{\delta h}_{t+1}
+=J_t(W_R)\widehat{\delta h}_t.
+```
+
+On retained-skill probe trajectories, compute retained-loss susceptibility to hidden-state perturbation,
+
+```math
+G_{R,t}=\frac{\partial L_{s_R}}{\partial h_t}.
+```
+
+The causal compatibility score is the mean propagated contraction over probe examples and time:
+
+```math
+\boxed{
 s_{causal}(C\to R)
 =
-\sum_{t}\left\|G_{R,t}\,\widehat{\delta h}_{C,t}\right\|,
+\operatorname{mean}_{q,t}
+\left|G_{R,t}^{(q)}\widehat{\delta h}_{C,t}^{(q)}\right|.
+}
 ```
 
-where
-
-```math
-\widehat{\delta h}_{C,t+1}=J_t(W_R)\widehat{\delta h}_{C,t}
-```
-
-and `G_{R,t}` measures how changes in the hidden state at time `t` affect retained-skill loss or output.
-
-The score is directional. In general,
-
-```math
-s_{causal}(C\to R) \ne s_{causal}(R\to C).
-```
-
-T6 should preserve that direction rather than symmetrizing by default.
+The score is directional. T6 never symmetrizes it by default.
 
 ### Oracle — joint finite evaluation
 
-Temporarily apply both edits and directly evaluate all relevant tasks.
+Temporarily apply both edits and directly evaluate `D_old`.
 
-This is not a practical pre-commit predictor; it is the expensive upper-bound attacker and source of the true collision label.
+This is the expensive upper bound and the source of the ground-truth collision label. It is not included among practical pre-commit predictors when ranking usefulness.
 
 ## Train / held-out split
 
-Thresholds and scalar-combination choices must be frozen before final scoring.
+The unit of holdout is the **candidate edit identity**, not an individual pair row.
 
-Use a split that prevents trivial memorization of particular edit sites or task pairs.
+Within each skill, admitted edits are sorted by their deterministic candidate seed. Even-indexed edit identities form the training pool; odd-indexed identities form the held-out pool.
 
-Recommended split:
+Final evaluation pairs are built only from held-out retained edits and held-out candidate edits. No held-out edit identity appears in predictor-threshold fitting.
 
-```text
-train: half of candidate-generation seeds / low-rank source directions
-held-out: disjoint remaining seeds / directions
-```
+Predictor thresholds for balanced-accuracy reporting are fit only on training-pool ordered pairs.
 
-Do not randomly split pair rows if the same underlying edit appears in both train and test.
-
-The unit of holdout is the **candidate edit identity**, not an individual pair.
+Continuous AUROC is evaluated directly on held-out pairs and is the primary comparison metric because it does not depend on threshold tuning.
 
 ## Required battery structure
 
-The final held-out set must contain all three qualitative categories:
+The held-out battery must contain all three qualitative categories:
 
 1. **compatible pairs** — both edits remain useful together;
-2. **destructive pairs** — candidate improves its own skill but harms a retained skill;
-3. **static confounds** — high static overlap but little actual damage, or low static overlap with large actual damage.
+2. **destructive pairs** — `C` is individually useful but causes `D_old > 0.20`;
+3. **static confounds** — at least five held-out cases in which parameter cosine and collision disagree qualitatively: high static overlap with no collision or low static overlap with collision.
 
-A useful gate requires nontrivial counts in all three categories. If the generator produces only one category, that configuration is invalid and should not be reported as a success.
+A valid gate requires:
+
+```text
+held-out collision prevalence between 0.20 and 0.80
+at least 5 static confounds
+at least 4 of the 6 ordered skill pairs represented by both collision classes
+```
+
+If this structure is absent, the world is rejected as uninformative before predictor performance is interpreted.
 
 ## Success criteria
 
 T6 passes only if all of the following hold on held-out edit identities:
 
-1. every evaluated candidate passes the individual-utility requirement before compatibility scoring;
-2. at least 20% of held-out pairs collide and at least 20% remain compatible;
-3. the propagated causal score has positive continuous correlation with finite retained-skill damage, target `r > 0.70`;
-4. its held-out AUROC or balanced accuracy exceeds each static attacker by at least `0.10` absolute;
-5. the result is not carried by a single task pair; causal advantage must be positive on at least two of the three retained/new skill pair families;
-6. oracle finite joint evaluation remains best or tied-best, as expected;
-7. all earlier T0–T5 tests continue to pass.
+1. every edit in the battery passed the individual-utility requirement;
+2. the required battery structure above is satisfied;
+3. causal score Pearson correlation with continuous `D_old` is `r > 0.70`;
+4. causal held-out AUROC exceeds **each** static attacker (`parameter`, `gradient`, `Fisher`, `Jstatic`) by at least `0.10` absolute;
+5. the train-fit causal threshold yields held-out balanced accuracy above `0.70`;
+6. causal AUROC exceeds the best static attacker in at least **4 of the 6 ordered skill-pair families** where both collision classes are present;
+7. shuffled-time and reversed-direction causal controls each lose at least `0.10` AUROC relative to the correct causal score;
+8. all earlier T0–T5 tests continue to pass on Python 3.11 and 3.12.
 
-These thresholds are design targets. If the first honest implementation misses them, record the negative result rather than tuning until it passes.
+The oracle is expected to be perfect because it directly measures the target; it is reported only as an upper-bound sanity check.
 
-## Important negative controls
+These are frozen design targets. If the first honest implementation misses them, record the negative result rather than tuning the thresholds until it passes.
+
+## Negative controls
 
 ### Shuffle causal transport
 
-Randomly permute the time order or Jacobian sequence used by the causal radar while preserving its marginal magnitudes.
+Randomly permute the order of the intervening recurrent Jacobians while keeping the same matrices and marginal magnitudes.
 
-Prediction: performance should collapse if ordered propagation is the source of the signal.
+Prediction: AUROC should fall if ordered propagation is carrying real information.
 
 ### Reverse direction
 
-Score `R -> C` when the task asks for `C -> R`.
+Use the causal score `R -> C` when predicting damage `C -> R`.
 
-Prediction: asymmetric cases should expose the error. If direction never matters, the claimed causal interpretation is too strong.
+Prediction: asymmetric pairs should expose the mistake.
 
 ### Zero-horizon control
 
-Replace propagated susceptibility with a same-time local susceptibility.
+Replace propagated susceptibility with the same-time contraction before tangent transport.
 
-This asks whether simple local sensitivity already explains the result.
+This asks whether local sensitivity alone explains the result.
 
 ### Candidate-strength sweep
 
-Evaluate at least three finite edit amplitudes.
+After the primary gate is frozen, rerun evaluation at candidate amplitude multipliers
 
-Prediction: first-order causal scores should degrade gracefully as edits become stronger. A catastrophic breakdown is scientifically useful and should be reported.
+```text
+0.5x, 1.0x, 1.5x
+```
+
+without regenerating directions.
+
+This is reported as a robustness curve, not used to decide the primary pass. The expected pattern is graceful degradation of first-order prediction as edits become stronger.
 
 ## Implementation boundaries
 
-T6 remains pure NumPy unless a dependency is scientifically necessary.
+T6 remains pure NumPy.
 
 Expected files:
 
@@ -341,16 +391,20 @@ Implementation follows the repository's existing gate style and the Superpowers 
 Recommended red-green order:
 
 1. RED: module / `run()` contract absent;
-2. GREEN: deterministic base world and summary object exist;
-3. RED: useful-candidate invariant required;
-4. GREEN: candidate generator produces individually useful persistent edits;
-5. RED: battery must contain compatible and destructive held-out pairs;
-6. GREEN: construct the balanced pair battery without using predictor labels;
-7. RED: causal predictor must beat static attackers on held-out edit identities;
-8. GREEN: implement propagated score and attackers;
-9. RED: shuffled/reversed causal controls must lose predictive value;
-10. GREEN: finish controls and reporting;
-11. regression: T0–T6 plus CI on Python 3.11 and 3.12.
+2. GREEN: deterministic world and summary object exist;
+3. RED: base model must satisfy the fixed 0.60–0.95 per-skill accuracy range;
+4. GREEN: deterministic seed scan and shared ridge readout;
+5. RED: useful-candidate invariant required;
+6. GREEN: target-only candidate generator admits at least 12 edits per skill;
+7. RED: held-out battery must contain compatible, destructive and static-confound pairs;
+8. GREEN: build ordered pairs on disjoint edit-identity pools;
+9. RED: define and verify gradient, empirical-Fisher and static-Jacobian attackers;
+10. GREEN: implement attackers without causal transport;
+11. RED: causal predictor must beat static attackers on held-out edit identities;
+12. GREEN: implement propagated causal score;
+13. RED: shuffled-time and reversed-direction controls must lose predictive value;
+14. GREEN: finish controls and reporting;
+15. regression: T0–T6 plus CI on Python 3.11 and 3.12.
 
 Tests should assert scientific invariants and broad performance margins, not exact floating-point table values where avoidable.
 
@@ -364,7 +418,7 @@ Then T4/T5 were special transport constructions. Stop escalating the causal-comp
 
 ### Causal score works only at tiny edit amplitudes
 
-Then it is a local screening tool, not a robust consolidation rule. Record the radius of usefulness.
+Then it is a local screening tool, not a robust consolidation rule. Record the useful radius.
 
 ### Causal score predicts isolated old-skill damage but not switching cost
 
@@ -382,7 +436,7 @@ Then the problem is too easy. Increase shared-substrate pressure rather than inv
 
 T6 does not yet combine every ThirdWay mechanism.
 
-If T6 succeeds, the next useful fusion is not immediately "discover all highways." The cleaner sequence is:
+If T6 succeeds, the cleaner sequence is:
 
 ```text
 T6 persistent compatibility
