@@ -1,9 +1,10 @@
 """Practical continual-learning policy built on the frozen T6 mechanism.
 
 This module deliberately does not change the T6 scientific world or its failed
-transport-order criterion.  It uses the surviving directional dynamic-risk
+transport-order criterion. It uses the surviving directional dynamic-risk
 signal as a practical pre-commit guard and compares that guard against blindly
-consolidating every locally useful edit.
+consolidating every locally useful edit. Skills already present in the baseline
+model are protected from the first new write onward.
 """
 
 from __future__ import annotations
@@ -113,9 +114,11 @@ def consider_candidate(
 ) -> ConsolidationDecision:
     """Decide whether one persistent edit may be consolidated.
 
-    The target-utility check uses only the candidate's own skill.  Compatibility
-    then asks whether the same edit is predicted to harm any *other* skill that
-    already has a retained edit.  Actual cross-skill damage is never inspected.
+    The target-utility check uses only the candidate's own skill. Compatibility
+    asks whether the same edit is predicted to harm any *other* skill represented
+    in the calibration set, including baseline skills before their first new edit.
+    Retained-edit provenance is unioned with that set for future extensibility.
+    Actual cross-skill damage is never inspected before the decision.
     """
     threshold = (
         calibrated_risk_threshold()
@@ -128,12 +131,15 @@ def consider_candidate(
     after = mean_squared_loss(trial, target_data, candidate.skill)
     target_improvement = float(before - after)
 
-    retained_skills = sorted(
-        {
-            int(edit.skill)
-            for edit in retained_edits
-            if int(edit.skill) != int(candidate.skill)
-        }
+    protected_skills = {
+        int(skill)
+        for skill in np.unique(calibration.skills)
+        if int(skill) != int(candidate.skill)
+    }
+    protected_skills.update(
+        int(edit.skill)
+        for edit in retained_edits
+        if int(edit.skill) != int(candidate.skill)
     )
     risk_by_skill = {
         skill: _causal_harm_score(
@@ -143,7 +149,7 @@ def consider_candidate(
             skill,
             shuffled=False,
         )
-        for skill in retained_skills
+        for skill in sorted(protected_skills)
     }
 
     if target_improvement <= MIN_TARGET_IMPROVEMENT:
@@ -208,8 +214,9 @@ def continual_demo(seed: int = 0) -> DemoSummary:
     """Run the frozen 12-event guarded-vs-accept-all continual-learning demo.
 
     Candidate generation belongs to the accept-all trajectory, so both learners
-    receive the exact same proposed matrices.  The guarded learner may reject a
-    proposal; it never gets to request an easier replacement for itself.
+    receive the exact same proposed matrices. The guarded learner may reject a
+    proposal; it never gets to request an easier replacement for itself. All
+    baseline non-target skills are protected from the first event onward.
     """
     proposal_data = make_dataset(
         seed=DEMO_PROPOSAL_SEED + int(seed),
@@ -248,7 +255,7 @@ def continual_demo(seed: int = 0) -> DemoSummary:
         # mechanism found useful.
         accept_all = apply_edit(accept_all, candidate)
 
-        # Guarded learner sees the same matrix.  Its decision is the production
+        # Guarded learner sees the same matrix. Its decision is the production
         # consolidation API, not copied scoring logic in this demo loop.
         decision = consider_candidate(
             guarded,
@@ -285,7 +292,7 @@ def continual_demo(seed: int = 0) -> DemoSummary:
     final_accept_all = _as_triplet(evaluate_all(accept_all, evaluation_data))
 
     # The final event is skill C, so A and B are the already-existing skills at
-    # that moment.  Keep this definition fixed and visible in the summary.
+    # that moment. Keep this definition fixed and visible in the summary.
     old_guarded = float(np.mean(final_guarded[:2]))
     old_accept_all = float(np.mean(final_accept_all[:2]))
 
