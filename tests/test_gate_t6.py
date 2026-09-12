@@ -5,9 +5,11 @@ from experiments.gate_t6_persistent_skill_compatibility import (
     Dataset,
     build_default_pair_battery,
     evaluate_all,
+    fisher_diagonal,
     generate_candidates,
     make_dataset,
     make_seed_model,
+    run,
 )
 
 
@@ -76,8 +78,18 @@ def test_pair_battery_uses_unseen_edit_identities_and_has_both_outcomes():
     battery = build_default_pair_battery()
 
     assert len(battery) == 192
-    train_ids = {case.candidate_id for case in battery if case.split == "train"}
-    test_ids = {case.candidate_id for case in battery if case.split == "test"}
+    train_ids = {
+        identity
+        for case in battery
+        if case.split == "train"
+        for identity in (case.candidate_id, case.retained_id)
+    }
+    test_ids = {
+        identity
+        for case in battery
+        if case.split == "test"
+        for identity in (case.candidate_id, case.retained_id)
+    }
     assert train_ids.isdisjoint(test_ids)
 
     held = [case for case in battery if case.split == "test"]
@@ -92,3 +104,51 @@ def test_pair_battery_uses_unseen_edit_identities_and_has_both_outcomes():
     assert all(case.candidate.improvement > 1e-4 for case in battery)
     assert all(np.isfinite(case.damage.leakage_delta) for case in battery)
     assert all(np.isfinite(case.damage.switch_cost_delta) for case in battery)
+
+
+def test_empirical_fisher_is_parameter_sensitivity_not_activation_cosine():
+    model = make_seed_model(seed=23)
+    data = make_dataset(seed=61, examples_per_skill=12)
+    fisher = fisher_diagonal(model, data, skill=0, examples=8)
+
+    assert fisher.shape == (24, 24)
+    assert np.all(np.isfinite(fisher))
+    assert np.all(fisher >= 0.0)
+    assert float(np.sum(fisher)) > 0.0
+
+
+def test_t6_frozen_scientific_gate():
+    s = run()
+
+    assert s.cases == 192
+    assert s.test_cases == 96
+    assert s.all_candidates_individually_useful
+    assert s.heldout_collision_fraction >= 0.20
+    assert s.heldout_safe_fraction >= 0.20
+
+    expected = {
+        "parameter",
+        "gradient",
+        "fisher",
+        "static_jacobian",
+        "causal",
+        "causal_shuffled",
+        "causal_reversed",
+        "oracle",
+    }
+    assert set(s.predictors) == expected
+    assert s.predictors["causal"].damage_correlation > 0.70
+
+    for name in ("parameter", "gradient", "fisher", "static_jacobian"):
+        assert s.predictors["causal"].test_auroc >= s.predictors[name].test_auroc + 0.10
+
+    assert s.skill_pair_families_with_positive_causal_advantage >= 4
+    assert s.predictors["oracle"].test_auroc >= s.predictors["causal"].test_auroc - 1e-12
+    assert (
+        s.predictors["causal"].test_auroc
+        >= s.predictors["causal_shuffled"].test_auroc + 0.10
+    )
+    assert (
+        s.predictors["causal"].test_auroc
+        >= s.predictors["causal_reversed"].test_auroc + 0.10
+    )
