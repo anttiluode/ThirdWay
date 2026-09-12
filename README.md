@@ -279,6 +279,70 @@ python -m experiments.t7a_accumulation_diagnostic
 
 ---
 
+## T7B — signed residual-carrying route memory
+
+T7B asks whether T7A failed because compatibility was reset after every accepted write. It keeps the exact same 12 proposal matrices and fixed scale bank, but carries the collateral change in each protected skill's recurrent hidden trajectory as a signed vector.
+
+For protected skill `k`,
+
+```math
+R_k=H_k(W)-A_k,
+```
+
+where `H_k` is the flattened hidden trajectory on 48 fixed calibration examples and `A_k` is the latest intentionally accepted version of that skill. A new write contributes
+
+```math
+r_k=H_k(W')-H_k(W),
+```
+
+so in measured response space
+
+```math
+R_k' = R_k+r_k.
+```
+
+The common RMS residual budget is **not tuned on T7B**. It is the largest collateral route displacement produced by the already-frozen T6 reject-only learner:
+
+```text
+B = 0.030291886681
+```
+
+A matched attacker accumulates only unsigned step magnitudes. Both policies receive the same candidates and the same budget.
+
+### Frozen result: FAIL, with a real signed-memory advantage
+
+| learner | A | B | C | mean | A/B old mean | switch penalty | writes |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| reject-only T6 | **0.844** | 0.656 | 0.648 | 0.716 | **0.750** | **0.00966** | 1 |
+| scalar cumulative debt | 0.789 | 0.648 | 0.664 | 0.701 | 0.719 | 0.01887 | 9 |
+| **signed residual memory** | 0.789 | **0.688** | **0.680** | **0.719** | **0.738** | 0.01826 | **11** |
+
+Signed memory is materially less conservative than unsigned debt: it accepts `11/12` rather than `9/12`, raises mean accuracy from `0.70052` to `0.71875`, and raises old A/B from `0.71875` to `0.73828`, while every accepted route residual remains inside the identical budget.
+
+But the stronger hypothesis fails in three ways:
+
+```text
+switching target     FAIL   0.01826 > 0.01466 allowed
+learning target      FAIL   final mean 0.71875 == starting mean
+repair events        FAIL   0 actual residual-norm decreases
+```
+
+That last line matters. Vector addition gives **geometric slack** relative to adding unsigned norms, but this frozen proposal stream does not contain an accepted write that actually pulls a protected route closer to its anchor.
+
+So the supported statement is narrower than the original intuition:
+
+> **The shared substrate physically retains the wake of earlier accepted search, and a signed linear response-space memory uses that wake better than unsigned cumulative debt. T7B does not show that later learning naturally repairs the wake.**
+
+[`T7B_RESULTS.md`](T7B_RESULTS.md)
+
+Run:
+
+```bash
+python -m experiments.t7b_residual_carrying_memory
+```
+
+---
+
 ## What moved forward from the older repos
 
 [`RETROSPECTIVE.md`](RETROSPECTIVE.md) contains the detailed map. The compact form is:
@@ -317,35 +381,37 @@ Call the extra stage **compatibility selection**.
 
 ---
 
-## Next hard boundary — residual-aware sequence compatibility
+## Next hard boundary — repair, not just bookkeeping
 
-T6 showed that a binary guard can protect knowledge by nearly stopping learning. T7A showed that simply shrinking each individually risky write can restore activity while still accumulating enough residual damage to forget.
+T6 showed that a binary guard can protect knowledge by nearly stopping learning. T7A showed that per-write safe amplitudes can still accumulate damage. T7B showed that remembering the **signed** route wake is better than remembering only unsigned damage magnitude, but passive bookkeeping produced no actual repair event and did not protect switching.
 
-So the next architectural question is no longer just
-
-```text
-How large a step is safe right now?
-```
-
-It is closer to
+The next architectural question is therefore no longer merely
 
 ```text
-What harmful residual does this useful direction leave in the protected computations,
-and how should that residual constrain or reshape later writes?
+What residual has accumulated?
 ```
 
-Two candidate next-stage mechanisms are now motivated but **not yet established**:
+It is
 
 ```text
-1. cumulative compatibility budget
-   -> track spent damage/susceptibility across accepted writes
-
-2. measured residual compensation
-   -> preserve the useful component of Delta W while cancelling the component
-      that remains visible as damage to protected computations
+Can the learner deliberately choose a useful change that removes part of the
+measured harmful residual — including the carried-state/switching coordinates
+that hidden-trajectory distance alone failed to protect?
 ```
 
-The second is where the SighImageSuper / sparse-residual intuition and the older IttnasNoruen finite-compensation result may meet. It is a new hypothesis, not a T7A result, and needs its own frozen gate before implementation.
+Two stronger mechanisms are now motivated but not established:
+
+```text
+1. measured compensation
+   -> keep the useful component of Delta W while adding a component chosen
+      specifically to cancel the endangered retained response
+
+2. residual-seeking search
+   -> let proposal generation prefer useful candidates whose signed route wake
+      reduces existing collateral residual instead of waiting for accidental cancellation
+```
+
+Only if one of those produces genuine repair should residual saturation be considered a signal for new-highway growth.
 
 After that, return to active sensing for write resolution, V25 adaptive resonant credit, and finally discovered rather than seeded computational approaches.
 
@@ -368,6 +434,7 @@ python -m experiments.gate_t5_nonlinear_collision_radar
 python demo_t6_continual_learning.py
 python -m experiments.t7_compatible_partial_writes
 python -m experiments.t7a_accumulation_diagnostic
+python -m experiments.t7b_residual_carrying_memory
 ```
 
-The raw `python -m experiments.gate_t6_persistent_skill_compatibility` command intentionally exits nonzero because the frozen scientific T6 criterion remains a recorded negative result. CI verifies that exact negative result separately rather than hiding it. T7A is likewise kept as an explicit frozen negative result rather than relaxed into a pass.
+The raw `python -m experiments.gate_t6_persistent_skill_compatibility` command intentionally exits nonzero because the frozen scientific T6 criterion remains a recorded negative result. CI verifies that exact negative result separately rather than hiding it. T7A and T7B are likewise kept as explicit frozen negative results rather than relaxed into passes.
