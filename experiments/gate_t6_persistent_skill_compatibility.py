@@ -10,6 +10,7 @@ cross-skill damage before the later compatibility stage.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Iterable
 
 import numpy as np
@@ -36,6 +37,7 @@ class WorldConfig:
 CONFIG = WorldConfig()
 AMPLITUDES = (-0.30, -0.20, -0.12, -0.07, 0.07, 0.12, 0.20, 0.30)
 DIRECTIONS_PER_CANDIDATE = 8
+COLLISION_THRESHOLD = 0.02
 
 
 @dataclass(frozen=True)
@@ -76,6 +78,29 @@ class CandidateEdit:
     @property
     def identity(self) -> tuple[int, int]:
         return (int(self.skill), int(self.seed))
+
+
+@dataclass(frozen=True)
+class Damage:
+    old_skill_damage: float
+    leakage_delta: float
+    switch_cost_delta: float
+
+
+@dataclass(frozen=True)
+class PairCase:
+    retained: CandidateEdit
+    candidate: CandidateEdit
+    split: str
+    damage: Damage
+
+    @property
+    def candidate_id(self) -> tuple[int, int]:
+        return self.candidate.identity
+
+    @property
+    def retained_id(self) -> tuple[int, int]:
+        return self.retained.identity
 
 
 def make_dataset(
@@ -157,12 +182,21 @@ def hidden_trajectory(model: Model, sequence: np.ndarray) -> np.ndarray:
     return np.asarray(states)
 
 
-def batch_hidden_trajectories(model: Model, sequences: np.ndarray) -> np.ndarray:
+def batch_hidden_trajectories(
+    model: Model,
+    sequences: np.ndarray,
+    initial_states: np.ndarray | None = None,
+) -> np.ndarray:
     """Run the exact same recurrence for a batch of independent sequences."""
     x = np.asarray(sequences, dtype=float)
     if x.ndim != 3:
         raise ValueError("sequences must have shape (batch, time, input_dim)")
-    h = np.zeros((x.shape[0], model.W.shape[0]), dtype=float)
+    if initial_states is None:
+        h = np.zeros((x.shape[0], model.W.shape[0]), dtype=float)
+    else:
+        h = np.asarray(initial_states, dtype=float).copy()
+        if h.shape != (x.shape[0], model.W.shape[0]):
+            raise ValueError("initial_states must have shape (batch, hidden_dim)")
     states = [h.copy()]
     for t in range(x.shape[1]):
         h = np.tanh(h @ model.W.T + x[:, t, :] @ model.B.T + model.b)
@@ -174,8 +208,12 @@ def final_hidden(model: Model, sequence: np.ndarray) -> np.ndarray:
     return hidden_trajectory(model, sequence)[-1]
 
 
-def batch_final_hidden(model: Model, sequences: np.ndarray) -> np.ndarray:
-    return batch_hidden_trajectories(model, sequences)[:, -1, :]
+def batch_final_hidden(
+    model: Model,
+    sequences: np.ndarray,
+    initial_states: np.ndarray | None = None,
+) -> np.ndarray:
+    return batch_hidden_trajectories(model, sequences, initial_states)[:, -1, :]
 
 
 def _fit_shared_readout(
@@ -210,8 +248,12 @@ def predict(model: Model, sequence: np.ndarray) -> float:
     return float(model.C @ final_hidden(model, sequence))
 
 
-def batch_predict(model: Model, sequences: np.ndarray) -> np.ndarray:
-    return batch_final_hidden(model, sequences) @ model.C
+def batch_predict(
+    model: Model,
+    sequences: np.ndarray,
+    initial_states: np.ndarray | None = None,
+) -> np.ndarray:
+    return batch_final_hidden(model, sequences, initial_states) @ model.C
 
 
 def mean_squared_loss(model: Model, dataset: Dataset, skill: int) -> float:
@@ -301,3 +343,151 @@ def generate_candidates(
             )
 
     return edits
+
+
+def _covariance_signature(states: np.ndarray) -> np.ndarray:
+    centered = np.asarray(states, dtype=float) - np.mean(states, axis=0, keepdims=True)
+    return centered.T @ centered / max(1, centered.shape[0])
+
+
+def _cosine_matrix(a: np.ndarray, b: np.ndarray) -> float:
+    den = float(np.linalg.norm(a) * np.linalg.norm(b))
+    if den <= 1e-15:
+        return 0.0
+    return float(abs(np.sum(a * b)) / den)
+
+
+def _representation_overlap(
+    model: Model,
+    dataset: Dataset,
+    first_skill: int,
+    second_skill: int,
+    *,
+    examples: int = 48,
+) -> float:
+    first = dataset.for_skill(first_skill)
+    second = dataset.for_skill(second_skill)
+    n = min(examples, first.targets.size, second.targets.size)
+    h_first = batch_final_hidden(model, first.inputs[:n])
+    h_second = batch_final_hidden(model, second.inputs[:n])
+    return _cosine_matrix(_covariance_signature(h_first), _covariance_signature(h_second))
+
+
+def _switch_penalty(
+    model: Model,
+    dataset: Dataset,
+    from_skill: int,
+    to_skill: int,
+    *,
+    examples: int = 24,
+) -> float:
+    """Measure context-switch transient while recurrent state is carried across episodes."""
+    before = dataset.for_skill(from_skill)
+    after = dataset.for_skill(to_skill)
+    n = min(examples, before.targets.size, after.targets.size)
+    carried_state = batch_final_hidden(model, before.inputs[:n])
+    carried_output = batch_predict(model, after.inputs[:n], carried_state)
+    reset_output = batch_predict(model, after.inputs[:n])
+    targets = after.targets[:n]
+    carried_loss = (carried_output - targets) ** 2
+    reset_loss = (reset_output - targets) ** 2
+    return float(np.mean(carried_loss - reset_loss))
+
+
+def measure_persistent_damage(
+    base: Model,
+    retained: CandidateEdit,
+    candidate: CandidateEdit,
+    dataset: Dataset,
+) -> Damage:
+    """Measure what permanently adding candidate does after retained is installed."""
+    if retained.skill == candidate.skill:
+        raise ValueError("T6 pair battery compares different skills")
+
+    retained_model = apply_edit(base, retained)
+    both_model = apply_edit(retained_model, candidate)
+
+    old_before = mean_squared_loss(retained_model, dataset, retained.skill)
+    old_after = mean_squared_loss(both_model, dataset, retained.skill)
+    old_damage = float(old_after - old_before)
+
+    overlap_before = _representation_overlap(
+        retained_model, dataset, retained.skill, candidate.skill
+    )
+    overlap_after = _representation_overlap(
+        both_model, dataset, retained.skill, candidate.skill
+    )
+    leakage_delta = float(overlap_after - overlap_before)
+
+    switch_before = _switch_penalty(
+        retained_model, dataset, candidate.skill, retained.skill
+    )
+    switch_after = _switch_penalty(
+        both_model, dataset, candidate.skill, retained.skill
+    )
+    switch_cost_delta = float(switch_after - switch_before)
+
+    return Damage(
+        old_skill_damage=old_damage,
+        leakage_delta=leakage_delta,
+        switch_cost_delta=switch_cost_delta,
+    )
+
+
+def _paired_seed(candidate_seed: int) -> int:
+    """Pair within a 16-seed split so no edit identity crosses train/test."""
+    start = 0 if candidate_seed < 16 else 16
+    return start + ((candidate_seed - start + 7) % 16)
+
+
+@lru_cache(maxsize=1)
+def _default_pair_battery() -> tuple[PairCase, ...]:
+    base = make_seed_model(seed=23)
+    proposal_data = make_dataset(seed=41, examples_per_skill=128)
+    evaluation_data = make_dataset(seed=53, examples_per_skill=128)
+
+    banks: dict[int, dict[int, CandidateEdit]] = {}
+    for skill in range(3):
+        edits = generate_candidates(
+            base,
+            proposal_data,
+            skill=skill,
+            candidate_seeds=range(32),
+        )
+        banks[skill] = {edit.seed: edit for edit in edits}
+        missing = sorted(set(range(32)) - set(banks[skill]))
+        if missing:
+            raise RuntimeError(
+                f"structurally invalid T6 battery: skill {skill} lacks useful edits {missing}"
+            )
+
+    cases: list[PairCase] = []
+    for candidate_skill in range(3):
+        for retained_skill in range(3):
+            if retained_skill == candidate_skill:
+                continue
+            for candidate_seed in range(32):
+                retained_seed = _paired_seed(candidate_seed)
+                candidate = banks[candidate_skill][candidate_seed]
+                retained = banks[retained_skill][retained_seed]
+                split = "train" if candidate_seed < 16 else "test"
+                damage = measure_persistent_damage(
+                    base,
+                    retained,
+                    candidate,
+                    evaluation_data,
+                )
+                cases.append(
+                    PairCase(
+                        retained=retained,
+                        candidate=candidate,
+                        split=split,
+                        damage=damage,
+                    )
+                )
+
+    return tuple(cases)
+
+
+def build_default_pair_battery() -> list[PairCase]:
+    return list(_default_pair_battery())
