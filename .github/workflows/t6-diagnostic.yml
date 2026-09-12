@@ -15,4 +15,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: pip install -e '.[test]'
       - name: Print frozen T6 metrics
+        continue-on-error: true
         run: python -m experiments.gate_t6_persistent_skill_compatibility
+      - name: Decompose temporal-order signal
+        run: python -m experiments.t6_order_diagnostic
