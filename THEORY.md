@@ -1,16 +1,24 @@
 # ThirdWay theory — covariant computational highways
 
-ThirdWay starts from a separation of roles that the parent arms reached independently.
+ThirdWay starts from two independently developed questions.
 
-GAx asks how multiple computational approaches can remain dynamically distinct and be selected by context. V25 asks how a mixed future consequence can find and rewrite the local causal route that produced it.
+**GAx** asks how several computational approaches can remain dynamically distinct, how context changes their gain, and how an evolving operator changes the meaning of a “mode.”
 
-The fusion object is therefore not “a neuron running a GA.” It is a dynamical system with **separated computational continuations, context-dependent gain, local causal history, changing observational resolution, and slow operator rewrite**.
+**GeometricNeuronV25** asks how mixed delayed consequence can find and rewrite the local causal route that produced it, including adaptive eligibility lifetimes and resonant temporal modes.
 
-## 1. Computational mode
+The fusion object is therefore not “a neuron running a GA.” It is:
 
-A computational mode is not merely a parameter cluster or an output cluster.
+> **a self-rewriting collection of identifiable, covariant computational highways.**
 
-Two states can produce the same observed answer and still implement different computations. A mode is distinguished counterfactually: there exists an intervention `I` for which their response, Jacobian, hidden trajectory, ablation sensitivity, or pathway usage differs systematically.
+The central difficulty is no longer merely learning a good answer. It is preserving several useful ways of computing while the substrate, representation, credit process and operator all change.
+
+---
+
+## 1. Computational identity is counterfactual and covariant
+
+A computational mode is not merely a parameter cluster or output cluster.
+
+Two systems can give the same observed answer and still implement different computations. A mode is distinguished by interventions, Jacobians, hidden trajectories, ablations or pathway usage.
 
 Write the computational families as moving subspaces
 
@@ -18,33 +26,33 @@ Write the computational families as moving subspaces
 E_1(t),E_2(t),\ldots,E_K(t).
 ```
 
-For a self-changing operator `L_t`, a useful highway should approximately continue as
+For a self-changing operator `L_t`, continuation means approximately
 
 ```math
 \boxed{L_tE_k(t)\approx E_k(t+1).}
 ```
 
-Identity is continuation through time, not fixed coordinates.
+Identity is therefore **continuation through dynamics**, not a frozen coordinate.
 
-Useful diagnostics are
+Useful diagnostics are within-mode gain
 
 ```math
 g_k(t)=\|P_k(t+1)L_tP_k(t)\|
 ```
 
-for within-mode gain and
+and cross-mode leakage
 
 ```math
-\ell_{jk}(t)=\|P_j(t+1)L_tP_k(t)\|,\qquad j\ne k
+\ell_{jk}(t)=\|P_j(t+1)L_tP_k(t)\|,\qquad j\ne k.
 ```
-
-for cross-mode leakage.
 
 A router should change the `g_k` strongly with context while keeping leakage low enough that distinct approaches do not collapse into a lethal average.
 
-## 2. Fast routing
+---
 
-Let `q_t` be positive amplitudes over currently available computational modes. A context `c_t` induces a positive gain operator
+## 2. Fast routing is modal gain, not necessarily an explicit expert index
+
+Let `q_t` be positive amplitudes over available computational modes. A context `c_t` induces a positive gain operator
 
 ```math
 D(c_t)=\operatorname{diag}(e^{a_1(c_t)},\ldots,e^{a_K(c_t)}).
@@ -56,21 +64,29 @@ A minimal routing step is projective normalization:
 \boxed{q_{t+1}=\frac{D(c_t)q_t}{\mathbf 1^\top D(c_t)q_t}.}
 ```
 
-This is the early mathematical meaning of “spectral router”: context changes relative modal gain and the dynamics perform the selection. A separate classifier outputting an expert index is not required.
+This is the early meaning of **spectral router** in ThirdWay: context changes relative growth rates and the dynamics perform the selection.
 
-## 3. Local causal history
-
-A routed computation acts on the world. A later modulation `m_t` returns, but the modulation need not contain the route address.
-
-Each highway retains its own eligibility state. In the simplest T0 form,
+GAx supplies the evolutionary interpretation. A lifted mutation-selection system has
 
 ```math
-e_{c,k}(t+1)=\rho e_{c,k}(t)+u_{c,k}(t),
+q_{g+1}=L_gq_g,
 ```
 
-where `u_{c,k}` is the local event generated when context `c` used route `k`.
+with the observed normalized population as a projective shadow. Repeated selection purifies modes; preserving a repertoire means preventing every useful alternative from acquiring a strongly negative long-term growth rate.
 
-Then a delayed global scalar can rewrite route gain through
+---
+
+## 3. Reward can stay scalar if causal address stays local
+
+A routed computation acts. A later modulation `m_t` returns, but the modulation need not contain a route label.
+
+In the simplest form, each route keeps an eligibility trace
+
+```math
+e_{c,k}(t+1)=\rho e_{c,k}(t)+u_{c,k}(t).
+```
+
+Delayed consequence rewrites modal gain through
 
 ```math
 \boxed{a_k(c)\leftarrow a_k(c)+\eta m_t e_{c,k}(t).}
@@ -83,100 +99,192 @@ reward: scalar
 address: local material state
 ```
 
-The reward does not carry `(c,k)` because the substrate has preserved it.
+T0 establishes this in the seeded two-route laboratory.
 
-## 4. Covariant credit
+---
 
-If the computational basis itself moves, a persistent eligibility trace can still become wrong.
+## 4. Credit identity must move with computational identity
 
-Let `E(t)` be the current mode basis and
+If the computational basis moves while reward is in flight, a persistent trace can survive and still become wrong.
 
-```math
-L_tE(t)\approx E(t+1).
-```
-
-A physical trace storing yesterday's route must therefore move too:
+A physical eligibility vector must be transported with the continuing road:
 
 ```math
 \boxed{e^{\rm phys}(t+1)=\rho L_t e^{\rm phys}(t)+u(t).}
 ```
 
-Modal credit at the current time is recovered by projection:
+T2 names the failure when this does not happen:
+
+> **stale credit** — the event is remembered, but the memory now points at yesterday's computation.
+
+The compact rule is
 
 ```math
-\hat e(t)=E(t)^\top e^{\rm phys}(t).
+\boxed{\textbf{credit identity must be covariant with computational identity}.}
 ```
 
-T2 shows why this is not cosmetic. If the memory simply decays in yesterday's coordinates, delayed reward can reinforce a different current mode even though the memory itself never vanished.
-
-```math
-\boxed{\text{credit identity must be covariant with computational identity}.}
-```
+---
 
 ## 5. Identifiability sets the legal resolution of credit
 
-T2 still assumed that the continuation transform was known. T3 removes that privilege.
+Covariance is not enough if the current observation cannot identify individual modes.
 
-Suppose the current observation operator has a nearly degenerate cluster. Individual vectors inside the cluster can be ill-conditioned even when the invariant subspace is stable. Then the currently justified object is a block
-
-```math
-\mathcal B(t)=\operatorname{span}\{E_i(t):i\in S\},
-```
-
-not the individual axes inside it.
-
-This leads to the strongest constraint in ThirdWay so far:
+When several axes become nearly degenerate, the stable observable object may be only a block
 
 ```math
-\boxed{\textbf{resolution of credit} \;\le\; \textbf{resolution of identifiable computation}.}
+\mathcal B(t)=\operatorname{span}\{E_i(t):i\in S\}.
 ```
 
-The rule has three cases.
+ThirdWay therefore imposes
 
-### Individual identity identifiable
+```math
+\boxed{\textbf{resolution of credit}\le\textbf{resolution of identifiable computation}.}
+```
 
-Use route-local credit normally.
-
-### Only a block/subspace identifiable
-
-Track and transport the block. Do not manufacture axis-level certainty from an ill-conditioned decomposition.
-
-### Fine identity needed but genuinely unobservable
-
-Acquire another intervention/measurement whose response separates the candidate continuations.
-
-In T3's hidden-gauge attacker the primary operator is exactly invariant to a 90-degree semantic rotation inside a degenerate block. No primary-only algorithm can recover the individual axes. A second operator with a different spectrum over the same latent frame restores the distinction.
-
-So active sensing gains a precise write-side trigger:
+There are three operational cases:
 
 ```text
-ask another question when current observational resolution
-is too coarse for the specificity of the proposed write.
+individual route identifiable
+    -> route-specific credit is legal
+
+only a block identifiable
+    -> preserve/transport the block, do not invent axis labels
+
+fine write required but fine identity unobservable
+    -> acquire another measurement/intervention before writing
 ```
 
-## 6. Spectral local credit
+T3 connects MovingProblem, AlgoSchalgo, V24 and Child here. In an exact hidden-gauge interval the primary operator genuinely cannot reveal the internal semantic rotation; a selectively queried second operator restores the needed distinction.
 
-V25 suggests replacing a single decay by resonant temporal states,
+---
+
+## 6. Temporal credit can itself be a searchable spectrum
+
+V25 replaces a single decay with damped resonant states
 
 ```math
 z_{k,j}(t+1)=\rho_j e^{i\omega_j}z_{k,j}(t)+u_k(t).
 ```
 
-The coordinates `(rho, omega)` describe causal lifetime and temporal carrier. A later scalar consequence can interact with local phase/history without transporting an explicit route label.
+The pair `(rho, omega)` describes causal lifetime and temporal carrier.
 
-A later ThirdWay gate can let the pole itself move,
+V25 F9 goes further: the pole itself can evolve toward hidden causal dynamics rather than merely selecting from a fixed bank.
 
-```math
-(\rho_k(t),\omega_k(t))\rightarrow(\rho_k(t+1),\omega_k(t+1)),
+ThirdWay has not yet fused that adaptive pole into the moving-road/collision machinery. The ordering now matters:
+
+```text
+first: know what computational distinction is identifiable
+then: keep credit attached to that continuation
+then: refine the temporal carrier used to hold the causal history
 ```
 
-while the computational road moves too.
+Otherwise one can build an exquisitely tuned temporal trace attached to the wrong or unidentifiable computation.
 
-T3 changes the ordering of priorities: before refining the temporal carrier, the system must know at what **computational resolution** a write is justified.
+---
 
-## 7. Two kinds of rewrite
+## 7. Slow learning should be represented as an operator edit
 
-The fusion requires keeping two operations distinct.
+Kompressori measured an important asymmetry:
+
+```text
+full finite-time response operator J      high-rank
+experience-induced change Delta J          much lower-rank
+```
+
+So a route-local slow rewrite can be modeled as
+
+```math
+\Delta L_i=U_iM_iV_i^*.
+```
+
+The question is no longer only whether edit `i` is useful by itself. It is whether several useful edits can coexist.
+
+CausalHorizon gives the exact time-ordered linear interaction coordinate
+
+```math
+\boxed{\Omega_{ji}=V_j^*\Phi(\tau_j,\tau_i+1)U_i}. 
+```
+
+This motivates a fourth stage in the genetic/evolutionary cartoon:
+
+```text
+variation
+ -> local success
+ -> compatibility selection
+ -> retention
+```
+
+**Compatibility selection** asks whether the consequence of one retained change propagates into the coordinates in which another change acts.
+
+T4 proves the need for that distinction in an exact linear transport laboratory: raw parameter overlap has zero precision and recall while propagated causal overlap classifies every collision.
+
+---
+
+## 8. T5: nonlinear causal susceptibility
+
+T5 asks whether the T4 idea survives when exact linear event algebra is gone.
+
+The substrate is
+
+```math
+x_{t+1}=\tanh(Ax_t+b_t).
+```
+
+For a later edit `j`, define its marginal action
+
+```math
+m_j(x)=f_{A+E_j}(x)-f_A(x).
+```
+
+The finite nonlinear collision caused by an earlier edit `i` is
+
+```math
+C_{i\to j}=\|m_j(x_j^{(i)})-m_j(x_j)\|.
+```
+
+The radar does **not** run the joint pair. It measures the isolated effect of `i`, propagates that perturbation through the unedited tangent trajectory,
+
+```math
+\widehat{\delta x}_j=J_{j-1}\cdots J_{i+1}r_i,
+```
+
+then applies the susceptibility of the later edit
+
+```math
+G_j=\frac{\partial m_j}{\partial x}\bigg|_{x_j}.
+```
+
+The score is
+
+```math
+\boxed{s_{\rm causal}=\|G_j\widehat{\delta x}_j\|.}
+```
+
+Across 192 finite cases, with thresholds fit on source sites 0–7 and tested on held-out sites 8–15:
+
+```text
+correlation with finite collision
+parameter cosine                 -0.411329
+activation / Fisher-ish proxy    -0.411329
+static Jacobian cosine           -0.410830
+propagated causal susceptibility  0.994736
+
+held-out collision recall
+parameter cosine                  0.000000
+activation / Fisher-ish proxy     0.000000
+static Jacobian cosine            0.000000
+propagated causal susceptibility  1.000000
+```
+
+The causal radar also reaches 1.000 held-out accuracy and precision in this construction.
+
+This is stronger than T4 but still narrow. It shows that a **single-edit first-order causal forecast can predict a finite nonlinear interaction on unseen locations**. It does not yet establish continual learning in a trained network.
+
+---
+
+## 9. Two timescales of rewrite
+
+ThirdWay keeps two operations distinct.
 
 ### Gain rewrite
 
@@ -192,15 +300,15 @@ means **use this existing approach more or less in this situation**.
 E_k(t)\rightarrow E_k(t+1)
 ```
 
-or more generally
+or
 
 ```math
 L_{t+1}=L_t+\Delta L_t
 ```
 
-means **change how future computations propagate**.
+means **change how the approach itself computes or propagates**.
 
-The working hypothesis is a timescale separation:
+The working hypothesis is
 
 ```math
 \boxed{\text{fast: route among approaches}}
@@ -209,157 +317,89 @@ The working hypothesis is a timescale separation:
 and
 
 ```math
-\boxed{\text{slow: rewrite approaches/router while preserving continuation identity}.}
+\boxed{\text{slow: rewrite approaches/operator while preserving identities and compatibility}.}
 ```
 
-Without that separation, repeated success can simply purify one mode and erase the repertoire.
+Without that separation, every successful context can pull all highways together and return the system to mode purification.
 
-## 8. Slow rewrite should be treated as an operator edit
-
-Kompressori measured a useful asymmetry:
-
-```text
-full response operator J      high-rank
-experience-induced change ΔJ  much lower-rank
-```
-
-This suggests representing a route-local slow edit as
-
-```math
-\boxed{\Delta L_i=U_iM_iV_i^*}. 
-```
-
-The question is then not merely whether an edit is locally useful, but whether several useful edits are dynamically compatible.
-
-CausalHorizon supplies the exact finite-event interaction coordinate
-
-```math
-\boxed{\Omega_{ji}=V_j^*\Phi(\tau_j,\tau_i+1)U_i}. 
-```
-
-The cross term contains `Omega_ji`: event `i` matters to event `j` only insofar as the current substrate propagates the first edit into the coordinates to which the second edit is sensitive.
-
-This motivates a compatibility stage absent from the ordinary `variation -> selection -> retention` cartoon:
-
-```text
-variation
-   -> local success
-   -> compatibility with retained causal highways
-   -> retain separately / coordinate / postpone / reject
-```
-
-Call that **compatibility selection**.
-
-## 9. Gate T4: causal collision beats static overlap in the exact laboratory
-
-T4 uses a cyclic transport operator precisely to make raw geometry misleading.
-
-Two rank-1 edits occur at different times. Across 192 balanced cases, three situations are generated:
-
-- transported collision: raw update directions differ, but the base dynamics carries the first directly into the second;
-- static confound: the raw update coordinate is identical, but the first edit has propagated away before the second occurs;
-- neutral: neither relation exists.
-
-The exact finite non-additivity is the target.
-
-Results:
-
-```text
-propagated |Omega_ji|:
-    accuracy  1.000
-    precision 1.000
-    recall    1.000
-
-static |V_j^T U_i|:
-    accuracy  0.333
-    precision 0.000
-    recall    0.000
-```
-
-The direct product cross term matches the causal prediction to below `7e-18` error.
-
-Thus, in this exact time-ordered linear laboratory:
-
-```math
-\boxed{\textbf{compatibility of learning is causal, not merely geometric}.}
-```
-
-This is not yet a general continual-learning result. It earns a new candidate variable to test in nonlinear adaptive systems.
+---
 
 ## 10. Failure modes
 
-ThirdWay now distinguishes at least seven different collapses.
+ThirdWay now distinguishes at least eight collapses.
 
 **Extinction** — one computational family loses essentially all amplitude.
 
-**Mixing** — multiple families remain populated but their internal computations blend into an invalid average.
+**Mixing** — multiple families remain but blend into an invalid average.
 
-**Geometry drift** — a family still exists, but moves so far that the old routing structure no longer tracks its continuation.
+**Geometry drift** — a family survives but the router no longer recognizes its continuation.
 
-**Stale credit** — causal memory survives, but remains attached to old coordinates and therefore reinforces the wrong current computation.
+**Stale credit** — memory survives in obsolete coordinates and reinforces the wrong current computation.
 
-**Over-specific credit** — the learner assigns an individual route identity when the available evidence supports only a coarser block.
+**Over-specific credit** — the learner writes at a finer route resolution than observation justifies.
 
-**Update collision** — two locally useful slow edits interfere because their propagated response geometries overlap.
+**Update collision** — two locally effective operator edits interfere after propagation through the substrate.
 
-**Spectral aliasing** — distinct causal histories become indistinguishable because the available temporal basis cannot resolve them.
+**Spectral aliasing** — different causal histories collapse onto indistinguishable temporal modes.
 
-## 11. Gate sequence
+**Purification collapse** — repeated success drives alternatives so far down that later contexts can no longer recover them cheaply.
+
+---
+
+## 11. Gate ladder
 
 ### T0 — local address, global consequence
 
-Status: **implemented**. Route-local late routing `0.952750`; pooled/current-only `0.512125`; route-shuffled `0.043000`.
+**Implemented.** Route-local routing `0.952750`; pooled/current-only `0.512125`; route-shuffled `0.043000`.
 
 ### T1 — moving road
 
-Status: **implemented**. Fixed-coordinate identity `0.519271`; covariant continuation `1.000000`; exact cocycle residual below `3e-16`.
+**Implemented.** Fixed-coordinate identity `0.519271`; continuation identity `1.000000`.
 
 ### T2 — delayed credit on a moving road
 
-Status: **implemented**. Covariant late routing `0.952750`; stale-coordinate routing `0.184500`; transported physical credit matches the ideal modal shadow to about `1.1e-15`.
+**Implemented.** Covariant routing `0.952750`; stale-coordinate routing `0.184500`.
 
 ### T3 — identifiability-aware credit
 
-Status: **implemented**. In the crossing world, vector-overlap routing falls to `0.5115` while ambiguity blocks retain `0.9525`, matching the oracle. In the exact hidden-gauge world, block-only routing falls to `0.3884`; selective second-operator queries recover `0.9453` versus oracle `0.9525`.
+**Implemented.** Ambiguity blocks preserve `0.9525` routing through noisy crossings; a selective second operator restores `0.9453` routing in an exact hidden-gauge attack.
 
-T3 establishes that fine credit requires fine identifiability.
+### T4 — exact causal compatibility
 
-### T4 — causal collision radar
+**Implemented.** Propagated overlap classifies all exact linear collisions; static overlap has zero precision and recall.
 
-Status: **implemented in an exact linear transport laboratory**. Propagated causal overlap predicts all 64/64 true collisions and rejects all non-collisions in the 192-case balanced battery; static overlap has zero precision and zero recall.
+### T5 — nonlinear collision radar
 
-T4 establishes the exact counterexample that raw update geometry can be the wrong compatibility coordinate after propagation through a dynamical substrate.
+**Implemented.** Propagated causal susceptibility has `r=0.994736` with finite nonlinear collision strength and 1.000 held-out accuracy/precision/recall; three static attackers have zero held-out recall.
 
-### T5 — noisy nonlinear collision radar
+### T6 — persistent skill edits
 
-Move from exact known `Phi` and rank-1 edits to an adaptive nonlinear model. Estimate update-response geometry from finite probes and compare:
+Next target. Move from time-local edit events to persistent task-specific low-rank changes in a shared recurrent model. Compare:
 
-- parameter/gradient cosine;
-- Fisher-like overlap;
-- static Jacobian or low-rank subspace overlap;
-- propagated causal-overlap estimate;
-- oracle joint finite candidate evaluation.
+- parameter and gradient cosine;
+- a genuine Fisher-style attacker;
+- static Jacobian/subspace overlap;
+- propagated causal radar;
+- oracle finite joint evaluation.
 
-Target: predict finite joint damage before committing both updates.
+Measure old-skill damage, cross-mode leakage and switching cost.
 
-### T6 — active measurement for write resolution
+### T7 — active sensing for write resolution
 
-Do not supply the diagnostic operator family. Give several possible probes with costs and let the system choose the one expected to reduce *write-relevant* identity ambiguity.
+Do not supply the diagnostic operator family. Let the system choose which costly intervention will reduce *write-relevant* identity ambiguity.
 
-This is the direct successor of V24/Child active sensing.
+### T8 — resonant moving credit
 
-### T7 — resonant moving credit
+Combine covariant computational identity with V25's adaptive temporal poles. Test whether computational identity and temporal-credit identity can both move without aliasing.
 
-Combine covariant identity with V25's adaptive temporal poles. Test whether route identity and temporal-credit identity can both move without aliasing.
+### T9 — discovered computational approaches
 
-### T8 — discovered computational approaches
+Remove the seeded direct/relational decomposition. Evolve/train generic small networks, identify computational families only by interventions/Jacobians/hidden trajectories, then test routing, delayed credit, active ambiguity resolution and compatible persistent rewrite.
 
-Remove labelled direct/relational pathways. Evolve/train generic tiny networks on an ambiguous world. Cluster survivors only by interventions, Jacobians, hidden trajectories and ablations. Then test contextual modal gain, delayed local credit, ambiguity-aware sensing and slow compatible rewrite over the discovered moving families.
-
-That is the first gate capable of supporting the strong claim:
+Only that final stage could support the strong target phrase:
 
 ```math
 \boxed{\textbf{self-rewriting spectral router over discovered computational highways}.}
 ```
 
-Until then, ThirdWay uses smaller names for smaller results.
+Until then, ThirdWay keeps smaller names for smaller results.
