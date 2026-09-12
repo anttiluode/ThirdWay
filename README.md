@@ -57,12 +57,21 @@ Attackers destroy the address in different ways:
 
 On the fixed 8-seed battery (`5000` events/seed, delays `3..10`):
 
-| learner | late route accuracy | late scalar reward | task accuracy |
-|---|---:|---:|---:|
-| **route-local eligibility** | **0.8139** | **0.8130** | **0.9068** |
-| pooled eligibility | 0.5121 | 0.5179 | 0.7591 |
-| current-only | 0.5121 | 0.5179 | 0.7591 |
-| shuffled route identity | 0.0091 | 0.0147 | 0.5074 |
+| learner | late route accuracy | late scalar reward | task accuracy | worst-seed route accuracy |
+|---|---:|---:|---:|---:|
+| **route-local eligibility** | **0.952750** | **0.955109** | **0.977875** | **0.932000** |
+| pooled eligibility | 0.512125 | 0.517902 | 0.759125 | 0.501000 |
+| current-only | 0.512125 | 0.517902 | 0.759125 | 0.501000 |
+| shuffled route identity | 0.043000 | 0.049467 | 0.524750 | 0.034000 |
+
+The learned local router is almost complementary across contexts:
+
+```text
+context A -> [direct 0.957808, relational 0.042192]
+context B -> [direct 0.044969, relational 0.955031]
+```
+
+Pooling/current-only leave both contexts at exactly `[0.5, 0.5]`. Shuffling the route address learns the near-opposite router.
 
 The result is deliberately narrower than the phrase “self-rewriting spectral router.” What T0 establishes is:
 
@@ -106,3 +115,5 @@ Until then, the repo keeps the claims smaller than the idea.
 python -m experiments.gate_t0_fusion
 pytest -q
 ```
+
+See [`T0_RESULTS.md`](T0_RESULTS.md) for the full receipt and [`THEORY.md`](THEORY.md) for the formal object and gate sequence.
