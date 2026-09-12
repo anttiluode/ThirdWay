@@ -21,3 +21,5 @@ jobs:
         run: python -m experiments.t6_order_diagnostic
       - name: Characterize candidate strength
         run: python -m experiments.t6_strength_sweep
+      - name: Run continual-learning demo
+        run: python demo_t6_continual_learning.py
