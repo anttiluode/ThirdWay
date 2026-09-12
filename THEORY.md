@@ -4,7 +4,7 @@ ThirdWay starts from a separation of roles that the parent arms reached independ
 
 GAx asks how multiple computational approaches can remain dynamically distinct and be selected by context. V25 asks how a mixed future consequence can find and rewrite the local causal route that produced it.
 
-The fusion object is therefore not “a neuron running a GA.” It is a dynamical system with **separated computational continuations, context-dependent gain, local causal history, and slow operator rewrite**.
+The fusion object is therefore not “a neuron running a GA.” It is a dynamical system with **separated computational continuations, context-dependent gain, local causal history, changing observational resolution, and slow operator rewrite**.
 
 ## 1. Computational mode
 
@@ -40,7 +40,7 @@ for within-mode gain and
 
 for cross-mode leakage.
 
-A router should be able to change the `g_k` strongly with context while keeping leakage low enough that distinct approaches do not collapse into a lethal average.
+A router should change the `g_k` strongly with context while keeping leakage low enough that distinct approaches do not collapse into a lethal average.
 
 ## 2. Fast routing
 
@@ -78,7 +78,7 @@ Then a delayed global scalar can rewrite route gain through
 \boxed{a_k(c)\leftarrow a_k(c)+\eta m_t e_{c,k}(t).}
 ```
 
-The important point is architectural:
+Architecturally:
 
 ```text
 reward: scalar
@@ -109,15 +109,56 @@ Modal credit at the current time is recovered by projection:
 \hat e(t)=E(t)^\top e^{\rm phys}(t).
 ```
 
-T2 shows why this is not cosmetic. If the memory simply decays in yesterday's coordinates, then delayed reward can reinforce a different current mode even though the memory itself never vanished.
-
-This gives the compact rule
+T2 shows why this is not cosmetic. If the memory simply decays in yesterday's coordinates, delayed reward can reinforce a different current mode even though the memory itself never vanished.
 
 ```math
 \boxed{\text{credit identity must be covariant with computational identity}.}
 ```
 
-## 5. Spectral local credit
+## 5. Identifiability sets the legal resolution of credit
+
+T2 still assumed that the continuation transform was known.
+
+T3 removes that privilege.
+
+Suppose the current observation operator has a nearly degenerate cluster. Individual vectors inside the cluster can be ill-conditioned even when the invariant subspace is stable. Then the currently justified object is a block
+
+```math
+\mathcal B(t)=\operatorname{span}\{E_i(t):i\in S\},
+```
+
+not the individual axes inside it.
+
+This leads to the strongest constraint in ThirdWay so far:
+
+```math
+\boxed{\textbf{resolution of credit} \;\le\; \textbf{resolution of identifiable computation}.}
+```
+
+The rule has three cases.
+
+### Individual identity identifiable
+
+Use route-local credit normally.
+
+### Only a block/subspace identifiable
+
+Track and transport the block. Do not manufacture axis-level certainty from an ill-conditioned decomposition.
+
+### Fine identity needed but genuinely unobservable
+
+Acquire another intervention/measurement whose response separates the candidate continuations.
+
+In T3's hidden-gauge attacker the primary operator is exactly invariant to a 90-degree semantic rotation inside a degenerate block. No primary-only algorithm can recover the individual axes. A second operator with a different spectrum over the same latent frame restores the distinction.
+
+So active sensing is no longer generic uncertainty reduction. It has a precise write-side trigger:
+
+```text
+ask another question when the current observational resolution
+is too coarse for the specificity of the proposed write.
+```
+
+## 6. Spectral local credit
 
 V25 suggests replacing a single decay by resonant temporal states,
 
@@ -125,19 +166,19 @@ V25 suggests replacing a single decay by resonant temporal states,
 z_{k,j}(t+1)=\rho_j e^{i\omega_j}z_{k,j}(t)+u_k(t).
 ```
 
-The coordinates `(rho, omega)` describe causal lifetime and temporal carrier. A later scalar consequence can interact with the local phase/history without transporting an explicit route label.
+The coordinates `(rho, omega)` describe causal lifetime and temporal carrier. A later scalar consequence can interact with local phase/history without transporting an explicit route label.
 
-A stronger future ThirdWay gate will let the pole itself move,
+A future ThirdWay gate can let the pole itself move,
 
 ```math
 (\rho_k(t),\omega_k(t))\rightarrow(\rho_k(t+1),\omega_k(t+1)),
 ```
 
-while the computational road is moving too.
+while the computational road moves too.
 
-That would make credit assignment itself a slowly rewritten dynamical object nested inside a moving computational mode.
+This remains important, but T3 changes the ordering of priorities: before refining the temporal carrier, the system must know at what **computational resolution** a write is justified.
 
-## 6. Two kinds of rewrite
+## 7. Two kinds of rewrite
 
 The fusion requires keeping two operations distinct.
 
@@ -149,13 +190,19 @@ a_k(c)\rightarrow a_k'(c)
 
 means **use this existing approach more or less in this situation**.
 
-### Geometry rewrite
+### Geometry/operator rewrite
 
 ```math
 E_k(t)\rightarrow E_k(t+1)
 ```
 
-means **change how the approach computes**.
+or more generally
+
+```math
+L_{t+1}=L_t+\Delta L_t
+```
+
+means **change how future computations propagate**.
 
 The working hypothesis is a timescale separation:
 
@@ -171,9 +218,46 @@ and
 
 Without that separation, repeated success can simply purify one mode and erase the repertoire.
 
-## 7. Failure modes
+## 8. The next rewrite object should be low-rank
 
-ThirdWay now distinguishes at least five different collapses.
+Kompressori measured a useful asymmetry:
+
+```text
+full response operator J      high-rank
+experience-induced change ΔJ  much lower-rank
+```
+
+This suggests representing a route-local slow edit as
+
+```math
+\boxed{\Delta L_i=U_iM_iV_i^*}. 
+```
+
+The question then becomes not merely whether an edit is locally useful, but whether several useful edits are dynamically compatible.
+
+CausalHorizon supplies the exact finite-event overlap object
+
+```math
+\boxed{\Omega_{ji}=V_j^*\Phi(\tau_j,\tau_i+1)U_i}. 
+```
+
+If `Omega_ji` is small/zero, one edit has little/no propagated access to the update coordinates of another. If it is large, two individually good changes can interact strongly.
+
+That gives a candidate write guard:
+
+```text
+local success
+    -> low-rank ΔL proposal
+    -> estimate directed propagated overlap with retained highways
+    -> compatible: commit separately
+    -> colliding: coordinate / postpone / jointly evaluate
+```
+
+This is more specific than generic parameter-space orthogonality.
+
+## 9. Failure modes
+
+ThirdWay now distinguishes at least six different collapses.
 
 **Extinction** — one computational family loses essentially all amplitude.
 
@@ -181,13 +265,15 @@ ThirdWay now distinguishes at least five different collapses.
 
 **Geometry drift** — a family still exists, but moves so far that the old routing structure no longer tracks its continuation.
 
-**Stale credit** — the causal memory survives, but remains attached to old coordinates and therefore reinforces the wrong current computation.
+**Stale credit** — causal memory survives, but remains attached to old coordinates and therefore reinforces the wrong current computation.
 
-**Spectral aliasing** — two causal histories become indistinguishable because the available temporal basis cannot resolve them.
+**Over-specific credit** — the learner assigns an individual route identity when the available evidence supports only a coarser block.
 
-The first four are conceptually different: a system can remember an event, retain both modes, and still learn incorrectly because the address of the memory failed to move with the mode.
+**Update collision** — two locally useful slow edits interfere because their propagated response geometries overlap.
 
-## 8. Gate sequence
+**Spectral aliasing** remains a seventh future failure: distinct causal histories become indistinguishable because the available temporal basis cannot resolve them.
+
+## 10. Gate sequence
 
 ### T0 — local address, global consequence
 
@@ -207,23 +293,39 @@ Store eligibility in physical coordinates while the basis rotates during the rew
 
 Status: **implemented and passing**. Covariant late routing `0.952750`; stale-coordinate routing `0.184500`; transported physical credit matches the ideal modal shadow to about `1.1e-15`.
 
-This is the first gate that requires both parent abstractions at once.
+### T3 — identifiability-aware credit
 
-### T3 — infer the road
+Infer continuation from a noisy moving operator. Near crossings, switch from individual-vector tracking to ambiguity blocks. Then attack that solution with an exact hidden gauge and allow a second operator only during ambiguity.
 
-Remove privileged access to `L_t`. Infer mode continuation/transport from noisy observations and test delayed credit near ambiguous crossings, branching, birth/death, and temporary occlusion.
+Status: **implemented**. In the crossing world, vector-overlap routing falls to `0.5115` while ambiguity blocks retain `0.9525`, matching the oracle. In the exact hidden-gauge world, block-only routing falls to `0.3884`; selective second-operator queries recover `0.9453` versus oracle `0.9525`.
 
-### T4 — resonant moving credit
+T3 establishes the operational rule that fine credit requires fine identifiability.
 
-Give each moving route damped resonant eligibility states. Hidden causal frequencies change. Ask whether the temporal pole can adapt while credit remains attached to the continuing computational identity.
+### T4 — collision-aware operator rewrite
 
-### T5 — separation against purification
+Give separate highways low-rank `Delta L` proposals and compare compatibility guards:
 
-Place two useful temporal modes on the same physical route. Test whether adaptation can preserve both rather than converge to one pole or average them.
+- naive addition;
+- parameter-space orthogonality;
+- static update-subspace overlap;
+- directed propagated overlap `Omega_ji`;
+- oracle joint finite evaluation.
 
-### T6 — discovered computational approaches
+Target: predict which locally useful edits can coexist without destroying old computational modes or future switching ability.
 
-Remove labelled direct/relational pathways. Evolve/train generic tiny networks on an ambiguous world. Cluster survivors only by interventions, Jacobians, hidden trajectories and ablations. Then test contextual modal gain and delayed local credit over the discovered moving families.
+### T5 — active measurement for write resolution
+
+Do not supply the diagnostic operator family. Give the system several possible probes with costs and let it choose the one expected to reduce *write-relevant* identity ambiguity.
+
+This is the direct successor of V24/Child active sensing.
+
+### T6 — resonant moving credit
+
+Combine covariant identity with V25's adaptive temporal poles. Test whether route identity and temporal-credit identity can both move without aliasing.
+
+### T7 — discovered computational approaches
+
+Remove labelled direct/relational pathways. Evolve/train generic tiny networks on an ambiguous world. Cluster survivors only by interventions, Jacobians, hidden trajectories and ablations. Then test contextual modal gain, delayed local credit, ambiguity-aware sensing and slow compatible rewrite over the discovered moving families.
 
 That is the first gate capable of supporting the strong claim:
 
