@@ -1,10 +1,12 @@
-from experiments.gate_t5_nonlinear_collision_radar import run
+import importlib
 
 
 def test_propagated_causal_radar_predicts_heldout_nonlinear_collisions():
     """Dynamic transport should beat raw/static overlap on held-out sites."""
-    s = run()
+    mod = importlib.import_module("experiments.gate_t5_nonlinear_collision_radar")
+    assert hasattr(mod, "run"), "Gate T5 must expose run()"
 
+    s = mod.run()
     assert s.cases == 192
     assert s.train_cases == 96
     assert s.test_cases == 96
