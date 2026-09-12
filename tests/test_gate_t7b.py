@@ -8,11 +8,13 @@ from experiments.gate_t6_persistent_skill_compatibility import (
 from experiments.t7_compatible_partial_writes import SCALE_BANK, t7a_demo
 from experiments.t7b_residual_carrying_memory import (
     RESIDUAL_EXAMPLES,
+    _passes_t7b,
     build_frozen_candidate_stream,
     consider_residual_candidate,
     reject_only_residual_budget,
     residual_rms,
     route_signature,
+    t7b_demo,
 )
 
 
@@ -76,3 +78,23 @@ def test_t7b_controller_never_rotates_candidate_and_respects_budget():
             decision.scale * candidate.delta_w,
         )
         assert max(decision.resultant_rms_by_skill.values()) <= reference.budget + 1e-12
+
+
+def test_t7b_frozen_gate_signed_route_memory_stops_sequence_drift():
+    s = t7b_demo(seed=0)
+
+    assert len(s.candidate_seeds) == 12
+    assert len(set(s.candidate_seeds)) == 12
+    assert s.all_direction_pure
+    assert s.all_budget_respected
+    assert s.residual_nonzero_writes >= 3
+    assert s.residual_old_skill_accuracy >= s.reject_only_old_skill_accuracy - 0.02
+    assert s.residual_switch_penalty <= s.reject_only_switch_penalty + 0.005
+    assert s.residual_mean_accuracy >= s.reject_only_mean_accuracy + 0.01
+    assert s.residual_mean_accuracy >= s.base_mean_accuracy + 0.005
+    assert s.residual_nonzero_writes >= s.scalar_debt_nonzero_writes + 2
+    assert s.residual_old_skill_accuracy >= s.scalar_debt_old_skill_accuracy - 0.01
+    assert s.residual_mean_accuracy >= s.scalar_debt_mean_accuracy + 0.005
+    assert s.repair_events >= 2
+    assert all(after >= before - 1e-15 for before, after in s.scalar_debt_transitions)
+    assert _passes_t7b(s)
