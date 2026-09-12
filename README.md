@@ -37,17 +37,13 @@ The two timescales matter. Fast dynamics should route among approaches. Slow dyn
 
 ## Gate T0 — the reward has no address, the substrate does
 
-T0 is intentionally small and partially seeded. It does **not** claim spontaneous discovery of experts yet.
-
-Two counterfactually different computations coexist:
+Two seeded, counterfactually distinct computations coexist:
 
 ```math
 y_d=\tanh(4x_0), \qquad y_r=\tanh(4x_1x_2).
 ```
 
 In context A the direct cue is reliable; in context B the relational cue is reliable. A positive diagonal gain operator defines the route probabilities. The selected route acts, but its scalar consequence is returned only after several unrelated events.
-
-The reward packet contains no `(context, route)` tag. Instead each route/context location keeps a decaying local policy-score eligibility trace. The delayed scalar multiplies those traces and rewrites the context-dependent gains.
 
 On the fixed 8-seed battery (`5000` events/seed, delays `3..10`):
 
@@ -58,43 +54,23 @@ On the fixed 8-seed battery (`5000` events/seed, delays `3..10`):
 | current-only | 0.512125 | 0.517902 | 0.759125 | 0.501000 |
 | shuffled route identity | 0.043000 | 0.049467 | 0.524750 | 0.034000 |
 
-The learned local router is almost complementary across contexts:
+T0 says:
 
-```text
-context A -> [direct 0.957808, relational 0.042192]
-context B -> [direct 0.044969, relational 0.955031]
-```
-
-Pooling/current-only leave both contexts at exactly `[0.5, 0.5]`. Shuffling the route address learns the near-opposite router.
-
-T0 establishes a narrow fusion result:
-
-```text
-separated computational modes
-+ context-dependent multiplicative gain
-+ delayed unlabelled consequence
-+ route-local eligibility
-----------------------------------------
-= gains can be rewritten without putting the route address in the reward
-```
+> **Delayed consequence can rewrite context-dependent modal gain without carrying its own route label, provided the substrate preserves route-local causal history.**
 
 See [`T0_RESULTS.md`](T0_RESULTS.md).
 
 ## Gate T1 — the road moves, identity continues
 
-T1 attacks the next hidden assumption: that a computational highway is a fixed vector in parameter coordinates.
+T1 attacks the assumption that a computational highway is a fixed vector in parameter coordinates.
 
-Two persistent mode identities rotate continuously through a 2-D basis. At each step their observed vectors are randomly reordered, sign-flipped and noised. A fixed-coordinate matcher keeps comparing against the initialization. A continuation tracker asks which yesterday-road each new candidate became.
+Two persistent mode identities rotate continuously through a 2-D basis. At each step their observed vectors are randomly reordered, sign-flipped and noised. A fixed-coordinate matcher keeps comparing against initialization. A continuation tracker asks which yesterday-road each new candidate became.
 
 The noiseless cocycle is
 
 ```math
 L_t = E(t+1)E(t)^\top,
-```
-
-and therefore
-
-```math
+\qquad
 \boxed{L_tE_k(t)=E_k(t+1)}.
 ```
 
@@ -107,31 +83,67 @@ Fixed 8-seed battery:
 
 Worst-seed continuation accuracy is `1.000000`; maximum exact covariance residual is `2.937e-16`.
 
-So a road can move completely away from its initial coordinates, even trade coordinate positions with another road, while retaining its computational identity by continuation.
+T1 says:
+
+> **A highway can move completely away from its initial coordinates while retaining identity by dynamical continuation.**
 
 See [`T1_RESULTS.md`](T1_RESULTS.md).
 
-## What we have — and what we do not
+## Gate T2 — credit must move with the road
 
-T0 gives the **credit half**:
+T2 is the first literal fusion gate.
 
-> consequence can find a route because local material preserved the address.
+T0 gave us local delayed credit. T1 gave us moving computational identity. T2 lets the computational basis rotate **while scalar consequence is still in flight**.
 
-T1 gives the **identity half**:
+A local eligibility event is stored in physical coordinates. Two systems receive the same delayed rewards:
 
-> the same route can move through coordinates if identity is defined by continuation rather than a frozen vector.
+- **covariant:** transport eligibility with the moving basis before reward arrives;
+- **stale:** let eligibility persist in yesterday's coordinates.
 
-We still do **not** yet have the strong object “self-rewriting spectral router.” The computational families are seeded, T0 keeps their geometry fixed, and T1 does not yet make delayed consequence rewrite a moving road.
+The basis rotates by `0.32 rad/event`, while rewards arrive `3..10` events later.
+
+| credit rule | late route accuracy | late scalar reward | task accuracy | worst-seed route accuracy |
+|---|---:|---:|---:|---:|
+| **covariantly transported** | **0.952750** | **0.955109** | **0.977875** | **0.932000** |
+| stale coordinates | **0.184500** | **0.196868** | **0.598500** | **0.054000** |
+
+For covariant transport, the maximum mismatch between the physical trace projected into the current basis and an ideal modal shadow is only `1.110e-15`.
+
+T2 says:
+
+```math
+\boxed{\textbf{credit identity must be covariant with computational identity}.}
+```
+
+This gives ThirdWay a new failure mode:
+
+> **stale credit** — the memory survives, but it now points at yesterday's computation.
+
+See [`T2_RESULTS.md`](T2_RESULTS.md).
+
+## Where we are
+
+We now have three increasingly strong statements in one executable line:
+
+```text
+T0: local material can hold the causal address that reward lacks.
+T1: computational identity is continuation, not frozen coordinates.
+T2: therefore causal address must move with the continuing computation.
+```
+
+This is already more than juxtaposing the parent repos. T2 is a result that only appears after their two abstractions are combined.
+
+We still do **not** yet have the strong object “self-rewriting spectral router over discovered computational highways.” The computations are seeded, the T2 transport is known exactly, and eligibility is still a simple decaying trace rather than an adaptive resonant pole.
 
 ## Next gates
 
-**T2 — consequence on a moving road.** Fuse T0 and T1 literally. Let a computational family drift while delayed scalar reward is still in flight. Compare credit attached to stale coordinates against credit transported with the covariant identity.
+**T3 — infer the moving road.** Remove privileged access to `L_t`. Estimate continuation/transport from noisy observations and test delayed credit near ambiguous crossings, mode birth/death, or branching.
 
-**T3 — spectral local credit.** Replace scalar decays with damped resonant eligibility and make the useful pole change. The route should adapt its temporal law without the reward carrying an address.
+**T4 — spectral local credit.** Replace scalar decays with damped resonant eligibility and make the useful pole change while the road also moves.
 
-**T4 — two useful modes on one route.** Attack purification directly: one physical route must preserve two causal temporal modes without averaging or extinguishing one.
+**T5 — two useful temporal modes on one route.** Attack purification directly: preserve two causal temporal highways without averaging or extinguishing one.
 
-**T5 — discovered approaches.** Remove the hand-labelled direct/relational decomposition. Evolve generic tiny networks, cluster survivors only by interventions/Jacobians/hidden trajectories, and ask whether context can amplify the discovered computational families while delayed local consequence rewrites the router.
+**T6 — discovered approaches.** Remove the hand-labelled direct/relational decomposition. Evolve generic tiny networks, cluster survivors only by interventions/Jacobians/hidden trajectories, and ask whether context can amplify the discovered families while delayed local consequence rewrites a moving router.
 
 That is the first point at which ThirdWay would deserve the strong phrase:
 
@@ -144,6 +156,7 @@ Until then, the repo keeps the claims smaller than the idea.
 ```bash
 python -m experiments.gate_t0_fusion
 python -m experiments.gate_t1_moving_road
+python -m experiments.gate_t2_credit_on_moving_road
 pytest -q
 ```
 
