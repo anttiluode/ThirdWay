@@ -21,3 +21,4 @@ jobs:
       - run: python -m experiments.gate_t0_fusion
       - run: python -m experiments.gate_t1_moving_road
       - run: python -m experiments.gate_t2_credit_on_moving_road
+      - run: python -m experiments.gate_t3_identifiability_credit
