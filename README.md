@@ -222,12 +222,69 @@ python demo_t6_continual_learning.py
 
 ---
 
+## T7A — compatible partial writes
+
+T7A kept the T6 world, candidate stream, risk threshold and candidate directions fixed. It changed only one thing: instead of binary accept/reject, each useful direction was tried at the frozen amplitudes
+
+```text
+1.00, 0.75, 0.50, 0.25, 0.125
+```
+
+and the largest target-useful fraction below every protected-skill risk threshold was committed.
+
+### Frozen result: FAIL
+
+T7A completely escaped the T6 freeze: it found a nonzero fraction for **12/12** proposals. But per-write safety did not compose across the sequence.
+
+| learner | A | B | C | mean | A/B old-at-final mean | switch penalty | writes |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| accept-all | 0.664 | 0.641 | 0.672 | 0.659 | 0.652 | 0.02105 | 12 |
+| reject-only T6 | **0.844** | **0.656** | 0.648 | **0.716** | **0.750** | **0.00966** | 1 |
+| T7A safe-step | 0.742 | **0.656** | **0.680** | 0.693 | 0.699 | 0.01784 | 12 |
+| finite per-step control | 0.812 | 0.641 | 0.664 | 0.706 | 0.727 | 0.01931 | 12 |
+
+The frozen T7A safety floor required old A/B `>= 0.730`; safe-step reached only `0.699`. Its switch penalty also exceeded the allowed T6 margin. The learning criterion failed too: final mean `0.693` did not beat reject-only `0.716` or the starting mean `0.719`.
+
+A post-failure diagnostic showed why:
+
+```text
+positive finite harm steps                 12 / 12
+sum of positive per-step max harm          0.380687
+corr(predicted risk, finite step harm)     0.644540
+final calibration loss drift A             +0.061845
+final calibration loss drift B             +0.077985
+final calibration loss drift C             -0.022412
+```
+
+Every accepted partial write was below the frozen *predicted* risk ceiling, yet every one caused a positive finite loss increment to at least one protected skill. Small residual harm accumulated.
+
+The finite per-step control is important here. It directly checks actual finite damage before each one step, yet it also accepts all twelve and ends below the starting aggregate mean. It is therefore an information upper bound for a **single local decision**, not a globally optimizing sequence oracle.
+
+The new executable principle is:
+
+> **Per-write compatibility does not compose into sequence-level compatibility.**
+
+Or in the residual language suggested by the SighImageSuper connection:
+
+> **Shrinking a useful operator change can reduce its harmful residual, but does not remove it; repeated residuals can accumulate into forgetting.**
+
+[`T7A_RESULTS.md`](T7A_RESULTS.md)
+
+Run:
+
+```bash
+python -m experiments.t7_compatible_partial_writes
+python -m experiments.t7a_accumulation_diagnostic
+```
+
+---
+
 ## What moved forward from the older repos
 
 [`RETROSPECTIVE.md`](RETROSPECTIVE.md) contains the detailed map. The compact form is:
 
 ```text
-SighImageSuper   -> memory is a recoverable distinction
+SighImageSuper   -> persistence hierarchy; a surviving mode leaves a transient remainder to interrogate
 MovingProblem    -> identity must survive moving coordinates
 AlgoSchalgo      -> ambiguity sets the legal resolution of identity/credit
 Child + V24      -> buy another observation when a proposed write needs finer evidence
@@ -260,34 +317,35 @@ Call the extra stage **compatibility selection**.
 
 ---
 
-## Next hard boundary — T7 compatible partial writes
+## Next hard boundary — residual-aware sequence compatibility
 
-T6's reject-only guard is safe but severely wasteful. T7 should ask a more constructive question:
+T6 showed that a binary guard can protect knowledge by nearly stopping learning. T7A showed that simply shrinking each individually risky write can restore activity while still accumulating enough residual damage to forget.
 
-> A full candidate is locally useful but unsafe. How much of that same direction can become permanent without crossing a compatibility boundary?
-
-The first T7 experiment should freeze a descending scale bank such as
+So the next architectural question is no longer just
 
 ```text
-1.00, 0.75, 0.50, 0.25, 0.125
+How large a step is safe right now?
 ```
 
-and choose the largest fraction that remains target-useful while falling below the protected-skill risk threshold. It must use the same 12-event proposal stream and may not inspect held-out old-skill damage before committing.
-
-Compare:
+It is closer to
 
 ```text
-accept-all
-reject-only guard       <- corrected T6 demo
-safe-step guard         <- T7A
-finite oracle upper bound
+What harmful residual does this useful direction leave in the protected computations,
+and how should that residual constrain or reshape later writes?
 ```
 
-Only if scalar safe steps fail should a later T7B import the IttnasNoruen finite-compensation idea.
+Two candidate next-stage mechanisms are now motivated but **not yet established**:
 
-The target is no longer merely **less forgetting**. It is:
+```text
+1. cumulative compatibility budget
+   -> track spent damage/susceptibility across accepted writes
 
-> **keep as much useful learning as possible while respecting compatibility constraints.**
+2. measured residual compensation
+   -> preserve the useful component of Delta W while cancelling the component
+      that remains visible as damage to protected computations
+```
+
+The second is where the SighImageSuper / sparse-residual intuition and the older IttnasNoruen finite-compensation result may meet. It is a new hypothesis, not a T7A result, and needs its own frozen gate before implementation.
 
 After that, return to active sensing for write resolution, V25 adaptive resonant credit, and finally discovered rather than seeded computational approaches.
 
@@ -308,6 +366,8 @@ python -m experiments.gate_t3_identifiability_credit
 python -m experiments.gate_t4_causal_collision
 python -m experiments.gate_t5_nonlinear_collision_radar
 python demo_t6_continual_learning.py
+python -m experiments.t7_compatible_partial_writes
+python -m experiments.t7a_accumulation_diagnostic
 ```
 
-The raw `python -m experiments.gate_t6_persistent_skill_compatibility` command intentionally exits nonzero because the frozen scientific T6 criterion remains a recorded negative result. CI verifies that exact negative result separately rather than hiding it.
+The raw `python -m experiments.gate_t6_persistent_skill_compatibility` command intentionally exits nonzero because the frozen scientific T6 criterion remains a recorded negative result. CI verifies that exact negative result separately rather than hiding it. T7A is likewise kept as an explicit frozen negative result rather than relaxed into a pass.
