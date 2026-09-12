@@ -5,6 +5,8 @@ from experiments.gate_t6_persistent_skill_compatibility import (
     Dataset,
     _passes_gate,
     build_default_pair_battery,
+    consider_candidate,
+    continual_demo,
     evaluate_all,
     fisher_diagonal,
     generate_candidates,
@@ -153,3 +155,21 @@ def test_t6_frozen_scientific_gate_is_recorded_negative_result():
     # carry the advantage. Keep that failure reproducible rather than relaxing it.
     assert causal.test_auroc < s.predictors["causal_shuffled"].test_auroc + 0.10
     assert _passes_gate(s) is False
+
+
+def test_causal_guard_controls_persistent_consolidation_on_same_candidate_stream():
+    demo = continual_demo(seed=0)
+
+    assert demo.candidates_considered == 12
+    assert demo.accepted + demo.rejected == demo.candidates_considered
+    assert demo.accept_all_accepted == demo.candidates_considered
+    assert demo.accepted < demo.accept_all_accepted
+    assert demo.candidate_seeds[0] >= 32
+    assert len(set(demo.candidate_seeds)) == demo.candidates_considered
+    assert len(demo.events) == demo.candidates_considered
+    assert all(event.used_consider_candidate for event in demo.events)
+
+    # This is the practical demo target, not a rewrite of the failed T6 science:
+    # the guarded policy should preserve the two skills that are old at the final
+    # C event at least as well as blindly consolidating every locally useful edit.
+    assert demo.final_old_skill_accuracy_guarded >= demo.final_old_skill_accuracy_accept_all
