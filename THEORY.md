@@ -87,7 +87,37 @@ address: local material state
 
 The reward does not carry `(c,k)` because the substrate has preserved it.
 
-## 4. Spectral local credit
+## 4. Covariant credit
+
+If the computational basis itself moves, a persistent eligibility trace can still become wrong.
+
+Let `E(t)` be the current mode basis and
+
+```math
+L_tE(t)\approx E(t+1).
+```
+
+A physical trace storing yesterday's route must therefore move too:
+
+```math
+\boxed{e^{\rm phys}(t+1)=\rho L_t e^{\rm phys}(t)+u(t).}
+```
+
+Modal credit at the current time is recovered by projection:
+
+```math
+\hat e(t)=E(t)^\top e^{\rm phys}(t).
+```
+
+T2 shows why this is not cosmetic. If the memory simply decays in yesterday's coordinates, then delayed reward can reinforce a different current mode even though the memory itself never vanished.
+
+This gives the compact rule
+
+```math
+\boxed{\text{credit identity must be covariant with computational identity}.}
+```
+
+## 5. Spectral local credit
 
 V25 suggests replacing a single decay by resonant temporal states,
 
@@ -95,17 +125,19 @@ V25 suggests replacing a single decay by resonant temporal states,
 z_{k,j}(t+1)=\rho_j e^{i\omega_j}z_{k,j}(t)+u_k(t).
 ```
 
-The coordinates `(rho, omega)` describe causal lifetime and temporal carrier. A later scalar consequence can interact with the real/complex phase of a local trace without transporting an explicit route label.
+The coordinates `(rho, omega)` describe causal lifetime and temporal carrier. A later scalar consequence can interact with the local phase/history without transporting an explicit route label.
 
-A stronger future ThirdWay gate will let the pole itself move:
+A stronger future ThirdWay gate will let the pole itself move,
 
 ```math
-(\rho_k(t),\omega_k(t))\rightarrow(\rho_k(t+1),\omega_k(t+1)).
+(\rho_k(t),\omega_k(t))\rightarrow(\rho_k(t+1),\omega_k(t+1)),
 ```
 
-That would make credit assignment itself a slowly rewritten dynamical object.
+while the computational road is moving too.
 
-## 5. Two kinds of rewrite
+That would make credit assignment itself a slowly rewritten dynamical object nested inside a moving computational mode.
+
+## 6. Two kinds of rewrite
 
 The fusion requires keeping two operations distinct.
 
@@ -139,50 +171,59 @@ and
 
 Without that separation, repeated success can simply purify one mode and erase the repertoire.
 
-## 6. Failure modes
+## 7. Failure modes
 
-ThirdWay will explicitly distinguish at least three collapses.
+ThirdWay now distinguishes at least five different collapses.
 
 **Extinction** — one computational family loses essentially all amplitude.
 
 **Mixing** — multiple families remain populated but their internal computations blend into an invalid average.
 
-**Geometry drift** — a family still exists, but moves so far that the old routing/credit structure no longer tracks its continuation.
+**Geometry drift** — a family still exists, but moves so far that the old routing structure no longer tracks its continuation.
 
-A fourth failure becomes relevant once temporal poles can adapt:
+**Stale credit** — the causal memory survives, but remains attached to old coordinates and therefore reinforces the wrong current computation.
 
-**spectral aliasing** — two causal histories become indistinguishable because the available temporal basis cannot resolve them.
+**Spectral aliasing** — two causal histories become indistinguishable because the available temporal basis cannot resolve them.
 
-## 7. Gate sequence
+The first four are conceptually different: a system can remember an event, retain both modes, and still learn incorrectly because the address of the memory failed to move with the mode.
+
+## 8. Gate sequence
 
 ### T0 — local address, global consequence
 
 Seed two distinct computations. Learn context-dependent modal gains from delayed scalar consequence. Destroy route address with pooled/shuffled controls.
 
-Status: implemented.
+Status: **implemented and passing**. Route-local late routing accuracy `0.952750`; pooled/current-only `0.512125`; route-shuffled `0.043000`.
 
 ### T1 — moving road
 
-Construct two computational families whose parameter coordinates rotate/drift while their counterfactual functions remain identifiable. Compare fixed-vector routing with subspace-continuation routing.
+Rotate the computational basis through parameter coordinates and compare frozen-coordinate identity with continuation identity.
 
-Target result:
+Status: **implemented and passing**. Fixed-coordinate identity `0.519271`; covariant continuation `1.000000`; exact cocycle residual below `3e-16`.
 
-```math
-\text{fixed coordinate identity fails},\qquad
-L_tE_k(t)\approx E_k(t+1)\text{ remains trackable}.
-```
+### T2 — delayed credit on a moving road
 
-### T2 — resonant credit
+Store eligibility in physical coordinates while the basis rotates during the reward delay. Compare transported credit with stale-coordinate credit.
 
-Give each route a bank of damped resonant eligibility states. Hidden causal delays/frequencies change. Ask whether route-local spectral states rewrite gains better than pooled frequency banks.
+Status: **implemented and passing**. Covariant late routing `0.952750`; stale-coordinate routing `0.184500`; transported physical credit matches the ideal modal shadow to about `1.1e-15`.
 
-### T3 — separation against purification
+This is the first gate that requires both parent abstractions at once.
+
+### T3 — infer the road
+
+Remove privileged access to `L_t`. Infer mode continuation/transport from noisy observations and test delayed credit near ambiguous crossings, branching, birth/death, and temporary occlusion.
+
+### T4 — resonant moving credit
+
+Give each moving route damped resonant eligibility states. Hidden causal frequencies change. Ask whether the temporal pole can adapt while credit remains attached to the continuing computational identity.
+
+### T5 — separation against purification
 
 Place two useful temporal modes on the same physical route. Test whether adaptation can preserve both rather than converge to one pole or average them.
 
-### T4 — discovered computational approaches
+### T6 — discovered computational approaches
 
-Remove labelled direct/relational pathways. Evolve/train generic tiny networks on an ambiguous world. Cluster survivors only by interventions, Jacobians, hidden trajectories and ablations. Then test contextual modal gain and delayed local credit over the discovered families.
+Remove labelled direct/relational pathways. Evolve/train generic tiny networks on an ambiguous world. Cluster survivors only by interventions, Jacobians, hidden trajectories and ablations. Then test contextual modal gain and delayed local credit over the discovered moving families.
 
 That is the first gate capable of supporting the strong claim:
 
