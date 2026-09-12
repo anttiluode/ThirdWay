@@ -9,27 +9,31 @@ ThirdWay is the deliberately separate fusion arm between:
 
 The rule here is strict: **ThirdWay does not inherit a conclusion merely because both parent arms make it sound plausible. It builds the smallest executable object that needs both ideas and attacks it with source-destroying controls.**
 
+The broader older-repo map is now explicit in [`RETROSPECTIVE.md`](RETROSPECTIVE.md).
+
 ## Working object
 
 The current hypothesis is not “GA + neuron”. It is:
 
 > **A self-rewriting collection of covariant computational highways.**
 
-A highway has three separable roles:
+A highway has four separable roles:
 
 1. **computation** — a counterfactually identifiable way of solving;
 2. **routing** — context changes its relative gain;
-3. **credit** — delayed global consequence is reassigned through route-local history rather than carrying its own route label.
+3. **credit** — delayed global consequence is reassigned through route-local history rather than carrying its own route label;
+4. **identity resolution** — the system tracks only the finest computational distinction its current evidence can actually support.
 
-A useful mathematical sketch is
+A useful sketch is
 
 ```text
 context/input
-    -> context-dependent positive operator
-    -> relative gain over separated computational modes
+    -> observable operator family
+    -> identifiable route / ambiguity block
+    -> context-dependent modal gain
     -> computation/action
     -> delayed scalar consequence
-    x route-local eligibility/history
+    x covariant local eligibility/history
     -> slow rewrite of future gains / route geometry
 ```
 
@@ -91,9 +95,7 @@ See [`T1_RESULTS.md`](T1_RESULTS.md).
 
 ## Gate T2 — credit must move with the road
 
-T2 is the first literal fusion gate.
-
-T0 gave us local delayed credit. T1 gave us moving computational identity. T2 lets the computational basis rotate **while scalar consequence is still in flight**.
+T2 lets the computational basis rotate **while scalar consequence is still in flight**.
 
 A local eligibility event is stored in physical coordinates. Two systems receive the same delayed rewards:
 
@@ -115,41 +117,105 @@ T2 says:
 \boxed{\textbf{credit identity must be covariant with computational identity}.}
 ```
 
-This gives ThirdWay a new failure mode:
+This gives ThirdWay a failure mode distinct from forgetting:
 
 > **stale credit** — the memory survives, but it now points at yesterday's computation.
 
 See [`T2_RESULTS.md`](T2_RESULTS.md).
 
-## Where we are
+## Gate T3 — credit cannot be finer than identifiable computation
 
-We now have three increasingly strong statements in one executable line:
+T2 cheated in one important way: the continuation transport was known.
 
-```text
-T0: local material can hold the causal address that reward lacks.
-T1: computational identity is continuation, not frozen coordinates.
-T2: therefore causal address must move with the continuing computation.
+T3 removes that privilege and connects the fusion line to **MovingProblem**, **AlgoSchalgo**, **GeometricNeuronV24**, and **Child**.
+
+### T3A — noisy crossing
+
+Four spectral modes move through changing coordinates. The two useful computational modes repeatedly become nearly degenerate. An ordinary vector-overlap tracker tries to keep naming both axes separately. The ambiguity-block tracker changes the tracked object itself: when the gap becomes too small, it tracks the whole identifiable subspace and carries the previous semantic basis through that subspace with a Procrustes lift.
+
+Eight-seed battery:
+
+| tracker | late route accuracy | late reward | task accuracy | late semantic fidelity |
+|---|---:|---:|---:|---:|
+| vector overlap | **0.5115** | 0.5027 | 0.7515 | 0.4565 |
+| **ambiguity blocks** | **0.9525** | **0.9541** | **0.9774** | **0.9967** |
+| oracle frame | 0.9525 | 0.9541 | 0.9774 | 1.0000 |
+
+The block is active for about 18.8% of the trajectory.
+
+So:
+
+```math
+\boxed{\text{when the vector is not identifiable, stop making vector-level claims}.}
 ```
 
-This is already more than juxtaposing the parent repos. T2 is a result that only appears after their two abstractions are combined.
+### T3B — exact hidden-gauge attack
 
-We still do **not** yet have the strong object “self-rewriting spectral router over discovered computational highways.” The computations are seeded, the T2 transport is known exactly, and eligibility is still a simple decaying trace rather than an adaptive resonant pole.
+Then the easy story is deliberately broken.
 
-## Next gates
+The first two eigenvalues become **exactly equal**, and the hidden semantic axes rotate by 90 degrees inside that degenerate subspace. The primary operator is invariant to the rotation. A passive tracker therefore has no legitimate information about the individual axes.
 
-**T3 — infer the moving road.** Remove privileged access to `L_t`. Estimate continuation/transport from noisy observations and test delayed credit near ambiguous crossings, mode birth/death, or branching.
+A second diagnostic operator shares the same computational frame but has a nondegenerate signature. The active arm queries it only while the primary eigengap says individual identity is unsupported.
 
-**T4 — spectral local credit.** Replace scalar decays with damped resonant eligibility and make the useful pole change while the road also moves.
+| tracker | late route accuracy | late reward | task accuracy | late semantic fidelity | extra query fraction |
+|---|---:|---:|---:|---:|---:|
+| overlap | 0.6804 | 0.6788 | 0.8396 | 0.5101 | 0 |
+| ambiguity blocks only | **0.3884** | 0.3782 | 0.6893 | **0.0210** | 0 |
+| **active operator family** | **0.9453** | **0.9419** | **0.9713** | **0.9992** | **0.2002** |
+| oracle frame | 0.9525 | 0.9541 | 0.9774 | 1.0000 | 0 |
 
-**T5 — two useful temporal modes on one route.** Attack purification directly: preserve two causal temporal highways without averaging or extinguishing one.
+This earns the strongest rule in the repo so far:
 
-**T6 — discovered approaches.** Remove the hand-labelled direct/relational decomposition. Evolve generic tiny networks, cluster survivors only by interventions/Jacobians/hidden trajectories, and ask whether context can amplify the discovered families while delayed local consequence rewrites a moving router.
+```math
+\boxed{\textbf{resolution of credit} \;\le\; \textbf{resolution of identifiable computation}.}
+```
 
-That is the first point at which ThirdWay would deserve the strong phrase:
+If a finer write matters and the present observation cannot support it, **ask another question before writing**.
 
-> **self-rewriting spectral router over discovered computational highways**
+See [`T3_RESULTS.md`](T3_RESULTS.md).
 
-Until then, the repo keeps the claims smaller than the idea.
+## What the older repos look like from here
+
+The detailed map is in [`RETROSPECTIVE.md`](RETROSPECTIVE.md). The shortest version is:
+
+```text
+SighImageSuper   -> a distinction is usable memory only if a future question can recover it
+MovingProblem    -> moving coordinates are fine; unjustified identity is the danger
+AlgoSchalgo      -> ambiguity blocks define the legal granularity of credit
+Child            -> delayed audit + active sensing + provenance + representation drift become one loop
+V24              -> measure when an ambiguity would change which write is justified
+IttnasNoruen     -> preserve counterfactual computational signatures, not just a bag of old outputs
+Kompressori      -> the full operator is high-rank but experience-induced ΔJ can be low-rank
+CausalHorizon    -> propagated causal overlap, not distance, should predict update collision
+Operaattori      -> slow structural variables can physically compile the future operator
+BlackBoxLab      -> preserve useful computational alternatives, not diversity by destructive depletion
+```
+
+This lets several old generic questions retire. We no longer need separate projects asking merely whether history matters, whether delayed reward can work, whether active sensing helps, or whether a representation may move. The hard problem has become **maintaining and rewriting multiple identifiable computational continuations without collapsing them into one**.
+
+## Next gate — collision-aware operator rewrite
+
+The most useful next step is no longer another frequency toy.
+
+Kompressori found that the response operator can be high-rank while an experience-induced change `ΔJ` is low-rank, and that separated updates add while overlapping updates interfere. CausalHorizon gives an exact linear measure of directed propagated event overlap,
+
+```math
+\Omega_{ji}=V_j^*\Phi(\tau_j,\tau_i+1)U_i.
+```
+
+So **T4** should give each computational highway a low-rank operator edit and compare:
+
+1. naive addition of successful edits;
+2. parameter-space orthogonalization;
+3. static subspace-overlap guarding;
+4. **directed propagated causal-overlap guarding**;
+5. oracle joint finite evaluation.
+
+The question is no longer only “which route deserves reward?” It is:
+
+> **Can two individually useful pieces of learning coexist dynamically, and can we predict that before committing them?**
+
+That would move the line from routing and credit assignment into **compatibility of learning itself**.
 
 ## Run
 
@@ -157,7 +223,8 @@ Until then, the repo keeps the claims smaller than the idea.
 python -m experiments.gate_t0_fusion
 python -m experiments.gate_t1_moving_road
 python -m experiments.gate_t2_credit_on_moving_road
+python -m experiments.gate_t3_identifiability_credit
 pytest -q
 ```
 
-See [`THEORY.md`](THEORY.md) for the formal object and gate sequence.
+See [`THEORY.md`](THEORY.md) for the formal object and [`RETROSPECTIVE.md`](RETROSPECTIVE.md) for the old-repo handoff.
