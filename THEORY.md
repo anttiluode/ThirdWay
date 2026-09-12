@@ -312,13 +312,13 @@ The final state perturbation is contracted with retained-task loss susceptibilit
 Held-out AUROC:
 
 ```text
-parameter cosine                 0.551136
-empirical Fisher                 0.579983
-static Jacobian overlap          0.542832
-gradient alignment               0.698427
-directional dynamic susceptibility 0.849213
-reversed direction               0.402972
-finite oracle                    1.000000
+parameter cosine                    0.551136
+empirical Fisher                    0.579983
+static Jacobian overlap             0.542832
+gradient alignment                  0.698427
+directional dynamic susceptibility  0.849213
+reversed direction                  0.402972
+finite oracle                       1.000000
 ```
 
 The directional score has `r=0.769216` with finite old-skill damage and beats every tested static attacker by the frozen `+0.10` margin at primary strength.
@@ -365,11 +365,11 @@ Fine tangent ordering may matter in other regimes, but T6 does not establish it 
 
 ---
 
-## 10. Practical consolidation: useful locally is not enough
+## 10. Practical consolidation: a useful safety filter can still be a bad learner
 
-The T6 demo uses the surviving directional-risk score before each permanent write.
+The T6 demo uses the surviving directional-risk score before each permanent write. Both learners receive the same 12 target-only candidate matrices.
 
-Both learners receive the same 12 target-only candidate matrices.
+The corrected guard protects every non-target skill already represented in the baseline calibration set from the first new write onward:
 
 ```text
 accept-all:
@@ -377,40 +377,45 @@ accept-all:
 
 guarded:
     candidate must remain useful in current state
-    AND dynamic risk to every retained other skill must stay below threshold
+    AND dynamic risk to every protected non-target skill must stay below threshold
 ```
 
-The threshold comes only from the frozen T6 training split.
+The threshold comes only from the frozen T6 training split. Held-out cross-skill damage is not consulted before commitment.
 
 Final behavior:
 
 ```text
-                 A      B      C      mean   old A/B mean
-base           .859   .664   .633    .719       -
-guarded        .859   .625   .664    .716      .742
-accept-all     .664   .641   .672    .659      .652
+                 A      B      C      mean   minimum   old A/B mean
+base           .859   .664   .633    .719    .633          -
+guarded        .844   .656   .648    .716    .648        .750
+accept-all     .664   .641   .672    .659    .641        .652
 ```
 
-The guard commits 5 of 12 updates. It preserves A exactly and still improves C. Accept-all learns every local improvement but catastrophically damages A.
-
-This is the first ThirdWay experiment where **compatibility prediction actually controls persistent neural-network learning**, not merely labels collisions after the fact.
-
-But it exposes a new failure:
+Mean carried-state switch penalty also falls:
 
 ```text
-rejection protects old computation
-but rejection throws away target improvement
+guarded     .00966
+accept-all  .02105
 ```
 
-The guard has better final mean than accept-all, yet does not improve aggregate mean beyond the initial model and ends slightly worse on B and C individually.
+But the corrected guard commits only **1 of 12** proposals. Nine are rejected by predicted dynamic risk; two become locally useless after the trajectories diverge.
 
-So a continual learner cannot stop at binary accept/reject.
+This is the first ThirdWay experiment where compatibility prediction actually controls persistent neural-network learning, not merely labels collisions after the fact. It is also a clean failure of binary veto as a complete continual-learning strategy:
+
+```text
+rejecting dangerous writes preserves old computation
+but rejecting almost every write produces protective stagnation
+```
+
+The guard finishes much safer than accept-all but does not improve aggregate held-out accuracy beyond the initial network.
+
+So a continual learner cannot stop at accept/reject.
 
 ---
 
 ## 11. T7 hypothesis: compatible partial writes
 
-Suppose a candidate `Delta W` is useful on the target but unsafe for a retained skill.
+Suppose a candidate `Delta W` is useful on the target but unsafe at full amplitude.
 
 Instead of
 
@@ -418,14 +423,14 @@ Instead of
 unsafe -> reject
 ```
 
-try
+try a predeclared descending scale bank
 
 ```math
 W' = W + \alpha\Delta W,
 \qquad \alpha\in\{1,.75,.5,.25,.125\}.
 ```
 
-Choose the largest `alpha` satisfying both:
+Choose the largest `alpha` satisfying both
 
 ```math
 \Delta L_{target}(\alpha)<0
@@ -435,29 +440,29 @@ and
 
 ```math
 s_{risk,k}(\alpha)\le\tau
-\quad\forall\text{ retained }k.
+\quad\forall\text{ protected }k.
 ```
 
-Because the first-order risk scales approximately with edit amplitude, this turns compatibility prediction into **step-size control** rather than merely a veto.
+This turns compatibility prediction into **step-size control** rather than merely a veto. The first experiment should not introduce a second search direction: keep the proposal direction fixed and ask whether amplitude alone recovers useful learning while preserving the T6 safety advantage.
 
-If no scalar fraction is safe, import the finite-change lesson from IttnasNoruen. A first-order preserving direction can leave the curved acceptable region at finite amplitude; then a compensating component is needed:
+The T7A comparison should keep the same frozen 12-event proposal stream:
+
+```text
+accept-all
+reject-only guard       <- corrected T6
+safe-step guard         <- T7A
+finite oracle           <- upper bound only
+```
+
+The target quantity is **useful learning retained per unit compatibility damage**.
+
+Only if scalar safe steps fail should T7B import the finite-change lesson from IttnasNoruen. A first-order preserving direction can leave a curved acceptable region at finite amplitude; then a compensating component may be required:
 
 ```math
 \Delta W_{safe}=\alpha\Delta W+\beta C_{comp}.
 ```
 
 The compensation direction should be measured against the endangered retained response, not chosen from parameter-space orthogonality alone.
-
-The T7 comparison should keep the same frozen proposal stream:
-
-```text
-accept-all
-reject-only guard       <- T6
-safe-step guard         <- T7
-finite oracle           <- upper bound only
-```
-
-The target quantity is **useful learning retained per unit compatibility damage**.
 
 This is the direct path from a collision radar to an actual continual-learning mechanism.
 
@@ -550,13 +555,13 @@ T6 demonstrates the last danger directly: a good veto mechanism is not yet a goo
 
 ### T6 — persistent skill edits
 
-**Implemented, primary scientific criterion FAILS.** Directional dynamic susceptibility reaches `0.849213` held-out AUROC and beats the static attackers, but shuffled tangent order reaches `0.858392`; exact transport order is therefore not shown necessary.
+**Implemented, primary scientific criterion FAILS.** Directional dynamic susceptibility reaches `0.849213` held-out AUROC and beats the tested static attackers, but shuffled tangent order reaches `0.858392`; exact transport order is therefore not shown necessary.
 
-**Practical demo succeeds narrowly.** A reject-only compatibility guard preserves old A/B mean `.742` versus `.652` for accept-all on the same 12 proposals, but it wastes useful writes and does not improve every skill.
+**Corrected practical demo is a safety result, not yet continual learning.** Protecting every baseline non-target skill gives old A/B mean `.750` versus `.652` for accept-all and a lower switch penalty, but the binary guard accepts only `1/12` proposals and leaves aggregate mean essentially at baseline.
 
 ### T7 — compatible partial writes
 
-**Next.** Convert the T6 veto into a safe-step controller. Shrink unsafe useful edits to the largest compatible fraction; if no fraction works, test measured finite compensation.
+**Next.** Convert the T6 veto into a safe-step controller. Keep the direction fixed and shrink unsafe useful edits to the largest compatible fraction. Only if that fails should a second compensation direction be introduced.
 
 ### T8 — active sensing for write resolution
 
