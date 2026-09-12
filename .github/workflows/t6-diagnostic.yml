@@ -19,3 +19,5 @@ jobs:
         run: python -m experiments.gate_t6_persistent_skill_compatibility
       - name: Decompose temporal-order signal
         run: python -m experiments.t6_order_diagnostic
+      - name: Characterize candidate strength
+        run: python -m experiments.t6_strength_sweep
